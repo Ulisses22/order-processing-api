@@ -24,6 +24,13 @@ public class Notification extends BaseEntity {
     )
     private Customer customer;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "order_id",
+            foreignKey = @ForeignKey(name = "fk_notification_order")
+    )
+    private Order order;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private NotificationType type;
@@ -76,5 +83,13 @@ public class Notification extends BaseEntity {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public Order getOrder() {
+        return order;
+    }
+
+    public void setOrder(Order order) {
+        this.order = order;
     }
 }

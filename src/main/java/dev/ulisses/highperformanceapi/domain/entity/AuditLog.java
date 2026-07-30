@@ -31,7 +31,7 @@ public class AuditLog extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String username;
 
-    @Column(nullable = false, length = 5000)
+    @Column(length = 5000)
     private String details;
 
     public String getEntityName() {

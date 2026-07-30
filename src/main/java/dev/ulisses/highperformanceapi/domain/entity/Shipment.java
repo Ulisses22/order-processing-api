@@ -3,6 +3,8 @@ package dev.ulisses.highperformanceapi.domain.entity;
 import dev.ulisses.highperformanceapi.domain.enums.ShipmentStatus;
 import jakarta.persistence.*;
 
+import java.time.Instant;
+
 @Entity
 @Table(
         name = "shipments",
@@ -38,6 +40,15 @@ public class Shipment extends BaseEntity {
     @Column(nullable = false, length = 30)
     private ShipmentStatus status;
 
+    @Column(name = "shipping_address", nullable = false, length = 500)
+    private String shippingAddress;
+
+    @Column(name = "shipped_at")
+    private Instant shippedAt;
+
+    @Column(name = "delivered_at")
+    private Instant deliveredAt;
+
     public Order getOrder() {
         return order;
     }
@@ -68,5 +79,29 @@ public class Shipment extends BaseEntity {
 
     public void setStatus(ShipmentStatus status) {
         this.status = status;
+    }
+
+    public String getShippingAddress() {
+        return shippingAddress;
+    }
+
+    public void setShippingAddress() {
+        this.shippingAddress = shippingAddress;
+    }
+
+    public Instant getShippedAt() {
+        return shippedAt;
+    }
+
+    public void setShippedAt(Instant shippedAt) {
+        this.shippedAt = shippedAt;
+    }
+
+    public Instant getDeliveredAt() {
+        return deliveredAt;
+    }
+
+    public void setDeliveredAt(Instant deliveredAt) {
+        this.deliveredAt = deliveredAt;
     }
 }

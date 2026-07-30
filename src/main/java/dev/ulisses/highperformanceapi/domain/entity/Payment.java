@@ -5,6 +5,7 @@ import dev.ulisses.highperformanceapi.domain.enums.PaymentStatus;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 @Table(
@@ -48,6 +49,9 @@ public class Payment extends BaseEntity {
 
     @Column(name = "authorization_code", length = 100)
     private String authorizationCode;
+
+    @Column(name = "processed_at")
+    private Instant processedAt;
 
     public Order getOrder() {
         return order;
@@ -97,4 +101,11 @@ public class Payment extends BaseEntity {
         this.authorizationCode = authorizationCode;
     }
 
+    public Instant getProcessedAt() {
+        return processedAt;
+    }
+
+    public void setProcessedAt(Instant processedAt) {
+        this.processedAt = processedAt;
+    }
 }

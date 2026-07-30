@@ -41,6 +41,9 @@ public class Order extends BaseEntity {
     )
     private List<OrderItem> items = new ArrayList<>();
 
+    @Column(nullable = false, unique = true, length = 30)
+    private String orderNumber;
+
     public Customer getCustomer() {
         return customer;
     }
@@ -78,4 +81,13 @@ public class Order extends BaseEntity {
         items.remove(item);
         item.setOrder(null);
     }
+
+    public String getOrderNumber() {
+        return orderNumber;
+    }
+
+    public void setOrderNumber(String orderNumber) {
+        this.orderNumber = orderNumber;
+    }
+
 }
