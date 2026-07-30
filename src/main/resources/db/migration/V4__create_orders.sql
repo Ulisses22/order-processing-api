@@ -2,6 +2,8 @@ CREATE TABLE orders
 (
     id UUID NOT NULL,
 
+    order_number VARCHAR(30) NOT NULL,
+
     customer_id UUID NOT NULL,
 
     total_amount NUMERIC(19,2) NOT NULL,
@@ -14,6 +16,9 @@ CREATE TABLE orders
 
     CONSTRAINT pk_orders
         PRIMARY KEY (id),
+
+    CONSTRAINT uk_orders_order_number
+        UNIQUE (order_number),
 
     CONSTRAINT fk_orders_customer
         FOREIGN KEY (customer_id)

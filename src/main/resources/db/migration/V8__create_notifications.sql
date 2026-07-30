@@ -4,6 +4,7 @@ CREATE TABLE notifications
     id UUID NOT NULL,
 
     customer_id UUID NOT NULL,
+    order_id UUID,
 
     type VARCHAR(30) NOT NULL,
     status VARCHAR(30) NOT NULL,
@@ -43,6 +44,9 @@ CREATE TABLE notifications
 
 CREATE INDEX idx_notifications_customer_created_at
     ON notifications(customer_id, created_at DESC);
+
+CREATE INDEX idx_notifications_order
+    ON notifications(order_id);
 
 CREATE INDEX idx_notifications_status
     ON notifications(status);
