@@ -14,6 +14,7 @@ CREATE TABLE payments
     transaction_id VARCHAR(255),
     authorization_code VARCHAR(255),
 
+    processed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     version BIGINT NOT NULL,

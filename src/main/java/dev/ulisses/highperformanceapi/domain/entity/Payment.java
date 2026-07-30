@@ -44,7 +44,7 @@ public class Payment extends BaseEntity {
     @Column(nullable = false, length = 30)
     private PaymentStatus status;
 
-    @Column(name = "transaction_id", nullable = false, length = 100)
+    @Column(name = "transaction_id", length = 100)
     private String transactionId;
 
     @Column(name = "authorization_code", length = 100)
