@@ -37,6 +37,16 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  springdoc:
+    swagger-ui:
+      operations-sorter: method
+      tags-sorter: alpha
+      display-request-duration: true
+    api-docs:
+      path: /v3/api-docs
+
 server:
   port: ${SERVER_PORT}
 
+app:
+  url: ${APP_URL}
