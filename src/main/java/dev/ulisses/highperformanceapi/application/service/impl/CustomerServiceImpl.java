@@ -3,6 +3,7 @@ package dev.ulisses.highperformanceapi.application.service.impl;
 import dev.ulisses.highperformanceapi.application.dto.request.CreateCustomerRequest;
 import dev.ulisses.highperformanceapi.application.dto.request.UpdateCustomerRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.CustomerResponse;
+import dev.ulisses.highperformanceapi.application.exception.DuplicateResourceException;
 import dev.ulisses.highperformanceapi.application.exception.ResourceNotFoundException;
 import dev.ulisses.highperformanceapi.application.mapper.CustomerMapper;
 import dev.ulisses.highperformanceapi.application.service.CustomerService;
@@ -10,10 +11,8 @@ import dev.ulisses.highperformanceapi.domain.entity.Customer;
 import dev.ulisses.highperformanceapi.domain.enums.CustomerStatus;
 import dev.ulisses.highperformanceapi.domain.repository.CustomerRepository;
 import dev.ulisses.highperformanceapi.domain.specification.CustomerSpecification;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -39,8 +38,7 @@ public class CustomerServiceImpl implements CustomerService {
     public CustomerResponse create(CreateCustomerRequest request) {
 
         if(customerRepository.existsByEmail(request.email())) {
-            throw new DuplicateKeyException("Customer with email '%s' already exists."
-                    .formatted(request.email()));
+            throw new DuplicateResourceException("Customer with email '%s' already exists.".formatted(request.email()));
         }
         Customer customer = customerMapper.toEntity(request);
 
