@@ -2,6 +2,7 @@ package dev.ulisses.highperformanceapi.application.service;
 
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreateProductRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.UpdateProductRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.ProductResponse;
 import dev.ulisses.highperformanceapi.application.exception.DuplicateResourceException;
 import dev.ulisses.highperformanceapi.application.exception.ResourceNotFoundException;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -229,6 +231,202 @@ class ProductServiceImplTest {
 
         verify(productRepository).findAll(pageable);
         verify(productMapper).toResponse(product);
+
+        verifyNoMoreInteractions(productRepository, productMapper);
+    }
+
+    @Test
+    void shouldSearchProductsByName() {
+        // Arrange
+        String name = "Keyboard";
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Product product = new Product();
+        product.setId(UUID.randomUUID());
+        product.setSku("SKU-001");
+        product.setName("Mechanical Keyboard");
+        product.setDescription("Mechanical gaming keyboard with RGB switches");
+        product.setPrice(new BigDecimal("199.90"));
+        product.setStatus(ProductStatus.ACTIVE);
+
+        ProductResponse response = new ProductResponse(
+                product.getId(),
+                product.getSku(),
+                product.getName(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getStatus(),
+                product.getCreatedAt(),
+                product.getUpdatedAt()
+        );
+
+        Page<Product> productPage = new PageImpl<>(List.of(product));
+
+        when(productRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(productPage);
+
+        when(productMapper.toResponse(product))
+                .thenReturn(response);
+
+        // Act
+        Page<ProductResponse> result = productService.search(name, pageable);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(1, result.getContent().size());
+        assertEquals(response, result.getContent().getFirst());
+
+        verify(productRepository)
+                .findAll(any(Specification.class), eq(pageable));
+
+        verify(productMapper).toResponse(product);
+
+        verifyNoMoreInteractions(productRepository, productMapper);
+    }
+
+    @Test
+    void shouldUpdateProduct() {
+        // Arrange
+        UUID productId = UUID.randomUUID();
+
+        UpdateProductRequest request = new UpdateProductRequest(
+                "Updated Product",
+                "Updated product description",
+                new BigDecimal("249.90")
+        );
+
+        Product product = new Product();
+        product.setId(productId);
+        product.setSku("SKU-001");
+        product.setName("Mechanical Keyboard");
+        product.setDescription("Mechanical gaming keyboard with RGB switches");
+        product.setPrice(new BigDecimal("199.90"));
+        product.setStatus(ProductStatus.ACTIVE);
+
+        ProductResponse response = new ProductResponse(
+                product.getId(),
+                product.getSku(),
+                product.getName(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getStatus(),
+                product.getCreatedAt(),
+                product.getUpdatedAt()
+        );
+
+        when(productRepository.findById(productId))
+                .thenReturn(Optional.of(product));
+
+        when(productRepository.save(product))
+                .thenReturn(product);
+
+        when(productMapper.toResponse(product))
+                .thenReturn(response);
+
+        // Act
+        ProductResponse result = productService.update(productId, request);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(response, result);
+
+        verify(productRepository).findById(productId);
+        verify(productMapper).updateEntity(request, product);
+        verify(productRepository).save(product);
+        verify(productMapper).toResponse(product);
+
+        verifyNoMoreInteractions(productRepository, productMapper);
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundExceptionWhenUpdatingNonExistingProduct() {
+        // Arrange
+        UUID productId = UUID.randomUUID();
+
+        UpdateProductRequest request = new UpdateProductRequest(
+                "Updated Product",
+                "Updated product description",
+                new BigDecimal("249.90")
+        );
+
+        when(productRepository.findById(productId))
+                .thenReturn(Optional.empty());
+
+        // Act & Assert
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> productService.update(productId, request)
+        );
+
+        assertEquals(
+                "Product with id '%s' not found".formatted(productId),
+                exception.getMessage()
+        );
+
+        verify(productRepository).findById(productId);
+
+        verify(productMapper, never())
+                .updateEntity(any(UpdateProductRequest.class), any(Product.class));
+
+        verify(productRepository, never()).save(any(Product.class));
+
+        verify(productMapper, never()).toResponse(any(Product.class));
+
+        verifyNoMoreInteractions(productRepository, productMapper);
+    }
+
+    @Test
+    void shouldDeleteProduct() {
+        // Arrange
+        UUID productId = UUID.randomUUID();
+
+        Product product = new Product();
+        product.setId(productId);
+        product.setSku("SKU-001");
+        product.setName("Mechanical Keyboard");
+        product.setDescription("Mechanical gaming keyboard with RGB switches");
+        product.setPrice(new BigDecimal("199.90"));
+        product.setStatus(ProductStatus.ACTIVE);
+
+        when(productRepository.findById(productId))
+                .thenReturn(Optional.of(product));
+
+        // Act
+        productService.delete(productId);
+
+        // Assert
+        verify(productRepository).findById(productId);
+        verify(productRepository).delete(product);
+
+        verify(productMapper, never()).toResponse(any(Product.class));
+
+        verifyNoMoreInteractions(productRepository, productMapper);
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundExceptionWhenDeletingNonExistingProduct() {
+        // Arrange
+        UUID productId = UUID.randomUUID();
+
+        when(productRepository.findById(productId))
+                .thenReturn(Optional.empty());
+
+        // Act & Assert
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> productService.delete(productId)
+        );
+
+        assertEquals(
+                "Product with id '%s' not found".formatted(productId),
+                exception.getMessage()
+        );
+
+        verify(productRepository).findById(productId);
+
+        verify(productRepository, never()).delete(any(Product.class));
 
         verifyNoMoreInteractions(productRepository, productMapper);
     }

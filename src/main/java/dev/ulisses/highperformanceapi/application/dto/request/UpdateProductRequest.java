@@ -13,6 +13,9 @@ public record UpdateProductRequest(
         @Size(max = 255, message = "Product name must not exceed 255 characters.")
         String name,
 
+        @Size(max = 1000)
+        String description,
+
         @NotNull(message = "Price is required.")
         @DecimalMin(value = "0.00", inclusive = false, message = "Price must be greater than zero.")
         BigDecimal price
