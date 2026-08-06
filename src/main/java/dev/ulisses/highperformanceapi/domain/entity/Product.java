@@ -55,6 +55,10 @@ public class Product extends BaseEntity {
         return description;
     }
 
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     public BigDecimal getPrice() {
         return price;
     }

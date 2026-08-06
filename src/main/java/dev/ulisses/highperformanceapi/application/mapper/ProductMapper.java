@@ -24,6 +24,7 @@ public interface ProductMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "sku", ignore = true)
     @Mapping(target = "status", ignore = true)
+    @Mapping(target = "description", ignore = true)
     void updateEntity(
             UpdateProductRequest request,
             @MappingTarget Product product

@@ -14,6 +14,8 @@ public record ProductResponse(
 
         String name,
 
+        String description,
+
         BigDecimal price,
 
         ProductStatus status,

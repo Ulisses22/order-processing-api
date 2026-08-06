@@ -9,6 +9,7 @@ import dev.ulisses.highperformanceapi.application.exception.ResourceNotFoundExce
 import dev.ulisses.highperformanceapi.application.mapper.ProductMapper;
 import dev.ulisses.highperformanceapi.application.service.ProductService;
 import dev.ulisses.highperformanceapi.domain.entity.Product;
+import dev.ulisses.highperformanceapi.domain.enums.ProductStatus;
 import dev.ulisses.highperformanceapi.domain.repository.ProductRepository;
 import dev.ulisses.highperformanceapi.domain.specification.ProductSpecification;
 import org.springframework.data.domain.Page;
@@ -43,6 +44,8 @@ public class ProductServiceImpl implements ProductService {
         }
 
         Product product = productMapper.toEntity(request);
+
+        product.setStatus(ProductStatus.ACTIVE);
 
         product = productRepository.save(product);
 
