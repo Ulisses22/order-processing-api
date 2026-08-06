@@ -137,7 +137,9 @@ class CustomerControllerIT {
                                 .with(httpBasic(username, password))
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(2)));
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.number").value(0));
     }
 
     @Test
