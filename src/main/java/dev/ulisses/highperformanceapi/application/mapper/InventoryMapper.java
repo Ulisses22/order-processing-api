@@ -13,6 +13,8 @@ import java.util.List;
 public interface InventoryMapper {
 
     @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "availableQuantity", source = "availableQuantity")
+    @Mapping(target = "reservedQuantity", source = "reservedQuantity")
     InventoryResponse toResponse(Inventory inventory);
 
     List<InventoryResponse> toResponseList(List<Inventory> inventories);

@@ -1,5 +1,6 @@
 package dev.ulisses.highperformanceapi.domain.entity;
 
+import dev.ulisses.highperformanceapi.application.exception.InsufficientStockException;
 import jakarta.persistence.*;
 
 @Table(
@@ -36,20 +37,20 @@ public class Inventory extends BaseEntity {
         this.product = product;
     }
 
+    public void setAvailableQuantity(int availableQuantity) {
+        this.availableQuantity = availableQuantity;
+    }
+
     public int getAvailableQuantity() {
         return availableQuantity;
     }
 
-    public void setAvailableQuantity(Integer availableQuantity) {
-        this.availableQuantity = availableQuantity;
+    public void setReservedQuantity(int reservedQuantity) {
+        this.reservedQuantity = reservedQuantity;
     }
 
     public int getReservedQuantity() {
         return reservedQuantity;
-    }
-
-    public void setReservedQuantity(Integer reservedQuantity) {
-        this.reservedQuantity = reservedQuantity;
     }
 
     @Transient
@@ -57,21 +58,44 @@ public class Inventory extends BaseEntity {
         return availableQuantity + reservedQuantity;
     }
 
-    public void reserve(Integer quantity) {
+    public void reserve(int quantity) {
+
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero.");
+        }
+
         if (availableQuantity < quantity) {
-            throw new IllegalArgumentException("Insufficient inventory.");
+            throw new InsufficientStockException("Insufficient inventory.");
         }
 
         availableQuantity -= quantity;
         reservedQuantity += quantity;
     }
 
-    public void release(Integer quantity) {
+    public void release(int quantity) {
+
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero.");
+        }
+
+        if (reservedQuantity < quantity) {
+            throw new IllegalArgumentException("Cannot release more than the reserved quantity.");
+        }
+
         reservedQuantity -= quantity;
         availableQuantity += quantity;
     }
 
-    public void deduct(Integer quantity) {
+    public void deduct(int quantity) {
+
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero.");
+        }
+
+        if (reservedQuantity < quantity) {
+            throw new IllegalArgumentException("Cannot deduct more than the reserved quantity.");
+        }
+
         reservedQuantity -= quantity;
     }
 }
