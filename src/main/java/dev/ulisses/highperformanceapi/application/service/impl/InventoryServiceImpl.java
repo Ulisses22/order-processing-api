@@ -8,6 +8,7 @@ import dev.ulisses.highperformanceapi.application.service.InventoryService;
 import dev.ulisses.highperformanceapi.domain.entity.Inventory;
 import dev.ulisses.highperformanceapi.domain.repository.InventoryRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -18,6 +19,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     private final InventoryRepository inventoryRepository;
     private final InventoryMapper inventoryMapper;
+    private static final int MAX_RETRY_ATTEMPTS = 3;
 
     public InventoryServiceImpl(InventoryRepository inventoryRepository, InventoryMapper inventoryMapper) {
         this.inventoryRepository = inventoryRepository;
@@ -39,19 +41,39 @@ public class InventoryServiceImpl implements InventoryService {
         inventory.setAvailableQuantity(request.availableQuantity());
         inventory.setReservedQuantity(request.reservedQuantity());
 
-        Inventory updatedInventory = inventoryRepository.save(inventory);
+        Inventory updatedInventory = inventoryRepository.saveAndFlush(inventory);
 
         return inventoryMapper.toResponse(updatedInventory);
     }
 
+    // Automatic retry strategy
+    // TODO: In a production application, I would eventually replace the manual loop with Spring Retry (@Retryable)
     @Override
     public void reserveStock(UUID productId, int quantity) {
 
-        Inventory inventory = findInventoryByProductId(productId);
+        final int maxRetries = 3;
+        int attempt = 0;
 
-        inventory.reserve(quantity);
+        while (true) {
+            try {
 
-        inventoryRepository.save(inventory);
+                Inventory inventory = findInventoryByProductId(productId);
+
+                inventory.reserve(quantity);
+
+                inventoryRepository.saveAndFlush(inventory);
+
+                return;
+
+            } catch (ObjectOptimisticLockingFailureException ex) {
+
+                attempt++;
+
+                if (attempt >= MAX_RETRY_ATTEMPTS) {
+                    throw ex;
+                }
+            }
+        }
     }
 
     @Override
@@ -61,7 +83,7 @@ public class InventoryServiceImpl implements InventoryService {
 
         inventory.release(quantity);
 
-        inventoryRepository.save(inventory);
+        inventoryRepository.saveAndFlush(inventory);
     }
 
     private Inventory findInventoryByProductId(UUID productId) {
