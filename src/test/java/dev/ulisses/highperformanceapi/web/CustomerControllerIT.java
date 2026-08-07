@@ -1,6 +1,7 @@
 package dev.ulisses.highperformanceapi.web;
 
 import dev.ulisses.highperformanceapi.application.dto.request.UpdateCustomerRequest;
+import org.springframework.http.HttpStatus;
 import tools.jackson.databind.ObjectMapper;
 import dev.ulisses.highperformanceapi.application.dto.request.CreateCustomerRequest;
 import dev.ulisses.highperformanceapi.domain.entity.Customer;
@@ -248,6 +249,6 @@ class CustomerControllerIT {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
-                .andExpect(status().isConflict());
+                .andExpect(status().is(HttpStatus.CONFLICT.value()));
     }
 }
