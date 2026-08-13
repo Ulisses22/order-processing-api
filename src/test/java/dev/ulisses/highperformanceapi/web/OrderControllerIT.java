@@ -703,4 +703,120 @@ public class OrderControllerIT {
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.status").value(422));
     }
+
+    @Test
+    void shouldSearchOrdersByStatus() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(inventory(product, 100));
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                customer.getId(),
+                List.of(new OrderItemRequest(product.getId(), 1))
+        );
+
+        mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .param("status", "PENDING"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].status").value("PENDING"));
+    }
+
+    @Test
+    void shouldSearchOrdersByCustomer() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(inventory(product, 100));
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                customer.getId(),
+                List.of(new OrderItemRequest(product.getId(), 1))
+        );
+
+        mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .param("customerId", customer.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].customerId")
+                        .value(customer.getId().toString()));
+    }
+
+    @Test
+    void shouldSearchOrdersByOrderNumber() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(inventory(product, 100));
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                customer.getId(),
+                List.of(new OrderItemRequest(product.getId(), 1))
+        );
+
+        String response = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String orderNumber = objectMapper
+                .readTree(response)
+                .get("orderNumber")
+                .asText();
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .param("orderNumber", orderNumber))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].orderNumber").value(orderNumber));
+    }
+
+    @Test
+    void shouldReturnEmptyPageWhenNoOrderMatchesFilters() throws Exception {
+
+        mockMvc.perform(get("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .param("status", "DELIVERED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
 }

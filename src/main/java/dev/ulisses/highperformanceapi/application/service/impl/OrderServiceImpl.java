@@ -2,6 +2,7 @@ package dev.ulisses.highperformanceapi.application.service.impl;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreateOrderRequest;
 import dev.ulisses.highperformanceapi.application.dto.request.OrderItemRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.OrderSearchRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.OrderResponse;
 import dev.ulisses.highperformanceapi.application.event.OrderCreatedEvent;
 import dev.ulisses.highperformanceapi.application.exception.BusinessException;
@@ -20,6 +21,7 @@ import dev.ulisses.highperformanceapi.domain.repository.CustomerRepository;
 import dev.ulisses.highperformanceapi.domain.repository.OrderItemRepository;
 import dev.ulisses.highperformanceapi.domain.repository.OrderRepository;
 import dev.ulisses.highperformanceapi.domain.repository.ProductRepository;
+import dev.ulisses.highperformanceapi.domain.specification.OrderSpecification;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -345,5 +347,12 @@ public class OrderServiceImpl implements OrderService {
                             + newStatus
             );
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrderResponse> search(OrderSearchRequest request, Pageable pageable) {
+
+        return orderRepository.findAll(OrderSpecification.withFilters(request), pageable).map(orderMapper::toResponse);
     }
 }

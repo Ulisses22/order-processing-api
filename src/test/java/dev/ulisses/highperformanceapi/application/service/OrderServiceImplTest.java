@@ -2,6 +2,7 @@ package dev.ulisses.highperformanceapi.application.service;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreateOrderRequest;
 import dev.ulisses.highperformanceapi.application.dto.request.OrderItemRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.OrderSearchRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.OrderResponse;
 import dev.ulisses.highperformanceapi.application.event.OrderCreatedEvent;
 import dev.ulisses.highperformanceapi.application.exception.BusinessException;
@@ -40,6 +41,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -749,6 +751,83 @@ class OrderServiceImplTest {
         verify(orderRepository).findById(orderId);
         verify(orderRepository).save(order);
         verify(orderMapper).toResponse(order);
+    }
+
+    @Test
+    void shouldSearchOrdersUsingFilters() {
+
+        // Arrange
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        OrderSearchRequest request = new OrderSearchRequest(
+                UUID.randomUUID(),
+                OrderStatus.PENDING,
+                "ORDER-001",
+                null,
+                null
+        );
+
+        Order order = new Order();
+        order.setOrderNumber("ORDER-001");
+        order.setStatus(OrderStatus.PENDING);
+
+        OrderResponse response = mock(OrderResponse.class);
+
+        Page<Order> page = new PageImpl<>(List.of(order));
+
+        when(orderRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(page);
+
+        when(orderMapper.toResponse(order))
+                .thenReturn(response);
+
+        // Act
+
+        Page<OrderResponse> result = orderService.search(request, pageable);
+
+        // Assert
+
+        assertEquals(1, result.getTotalElements());
+        assertSame(response, result.getContent().getFirst());
+
+        verify(orderRepository)
+                .findAll(any(Specification.class), eq(pageable));
+
+        verify(orderMapper)
+                .toResponse(order);
+    }
+
+    @Test
+    void shouldReturnEmptyPageWhenSearchFindsNothing() {
+
+        // Arrange
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        OrderSearchRequest request = new OrderSearchRequest(
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(orderRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        // Act
+
+        Page<OrderResponse> result = orderService.search(request, pageable);
+
+        // Assert
+
+        assertTrue(result.isEmpty());
+
+        verify(orderRepository)
+                .findAll(any(Specification.class), eq(pageable));
+
+        verifyNoInteractions(orderMapper);
     }
 
 }
