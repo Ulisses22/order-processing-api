@@ -8,7 +8,6 @@ import dev.ulisses.highperformanceapi.application.exception.BusinessException;
 import dev.ulisses.highperformanceapi.application.exception.InsufficientStockException;
 import dev.ulisses.highperformanceapi.application.exception.ResourceNotFoundException;
 import dev.ulisses.highperformanceapi.application.mapper.OrderMapper;
-import dev.ulisses.highperformanceapi.application.service.InventoryService;
 import dev.ulisses.highperformanceapi.application.service.impl.OrderServiceImpl;
 import dev.ulisses.highperformanceapi.domain.entity.Customer;
 import dev.ulisses.highperformanceapi.domain.entity.Order;
@@ -32,10 +31,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 
 
@@ -335,6 +342,117 @@ class OrderServiceImplTest {
         verify(orderRepository, never()).save(any(Order.class));
         verify(eventPublisher, never()).publishEvent(any());
         verify(orderMapper, never()).toResponse(any());
+    }
+
+    @Test
+    void shouldFindOrderById() {
+
+        // Arrange
+
+        Order order = new Order();
+        order.setStatus(OrderStatus.PENDING);
+        order.setOrderNumber("ORDER-001");
+
+        OrderResponse response = mock(OrderResponse.class);
+
+        when(orderRepository.findById(order.getId()))
+                .thenReturn(Optional.of(order));
+
+        when(orderMapper.toResponse(order))
+                .thenReturn(response);
+
+        // Act
+
+        OrderResponse result = orderService.findById(order.getId());
+
+        // Assert
+
+        assertSame(response, result);
+
+        verify(orderRepository).findById(order.getId());
+        verify(orderMapper).toResponse(order);
+    }
+
+    @Test
+    void shouldThrowWhenOrderDoesNotExist() {
+
+        // Arrange
+
+        UUID orderId = UUID.randomUUID();
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.empty());
+
+        // Act & Assert
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> orderService.findById(orderId)
+        );
+
+        assertEquals(
+                "Order not found with id: " + orderId,
+                exception.getMessage()
+        );
+
+        verify(orderRepository).findById(orderId);
+        verifyNoInteractions(orderMapper);
+    }
+
+    @Test
+    void shouldReturnPagedOrders() {
+
+        // Arrange
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Order order = new Order();
+        order.setOrderNumber("ORDER-001");
+        order.setStatus(OrderStatus.PENDING);
+
+        OrderResponse response = mock(OrderResponse.class);
+
+        Page<Order> orderPage = new PageImpl<>(List.of(order));
+
+        when(orderRepository.findAll(pageable))
+                .thenReturn(orderPage);
+
+        when(orderMapper.toResponse(order))
+                .thenReturn(response);
+
+        // Act
+
+        Page<OrderResponse> result = orderService.findAll(pageable);
+
+        // Assert
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals(response, result.getContent().getFirst());
+
+        verify(orderRepository).findAll(pageable);
+        verify(orderMapper).toResponse(order);
+    }
+
+    @Test
+    void shouldReturnEmptyPageWhenNoOrdersExist() {
+
+        // Arrange
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(orderRepository.findAll(pageable))
+                .thenReturn(Page.empty(pageable));
+
+        // Act
+
+        Page<OrderResponse> result = orderService.findAll(pageable);
+
+        // Assert
+
+        assertTrue(result.isEmpty());
+
+        verify(orderRepository).findAll(pageable);
+        verifyNoInteractions(orderMapper);
     }
 
 }

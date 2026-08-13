@@ -42,7 +42,7 @@ public class Order extends BaseEntity {
     )
     private List<OrderItem> items = new ArrayList<>();
 
-    @Column(nullable = false, unique = true, length = 30)
+    @Column(nullable = false, unique = true, length = 50)
     private String orderNumber;
 
     public Customer getCustomer() {

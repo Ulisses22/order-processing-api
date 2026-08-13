@@ -90,13 +90,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public OrderResponse findById(UUID id) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        Order order = orderRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + id));
+
+        return orderMapper.toResponse(order);
     }
 
     @Override
     public Page<OrderResponse> findAll(Pageable pageable) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        return orderRepository.findAll(pageable).map(orderMapper::toResponse);
     }
 
     @Override
@@ -222,8 +225,17 @@ public class OrderServiceImpl implements OrderService {
 
             orderItem.setOrder(order);
             orderItem.setProduct(product);
+
+            orderItem.setProductSku(product.getSku());
+            orderItem.setProductName(product.getName());
+
             orderItem.setQuantity(item.quantity());
             orderItem.setUnitPrice(product.getPrice());
+
+            orderItem.setSubtotal(
+                    product.getPrice()
+                            .multiply(BigDecimal.valueOf(item.quantity()))
+            );
 
             orderItems.add(orderItem);
         }

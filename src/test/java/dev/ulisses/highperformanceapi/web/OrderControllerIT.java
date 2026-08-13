@@ -3,6 +3,7 @@ package dev.ulisses.highperformanceapi.web;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreateOrderRequest;
 import dev.ulisses.highperformanceapi.application.dto.request.OrderItemRequest;
+import dev.ulisses.highperformanceapi.application.dto.response.OrderResponse;
 import dev.ulisses.highperformanceapi.domain.entity.Customer;
 import dev.ulisses.highperformanceapi.domain.entity.Inventory;
 import dev.ulisses.highperformanceapi.domain.entity.Product;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -245,5 +247,121 @@ public class OrderControllerIT {
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value(containsString("Customer not found")))
                 .andExpect(jsonPath("$.path").value("/api/v1/orders"));
+    }
+
+    @Test
+    void shouldReturnOrderById() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 2)
+                )
+        );
+
+        String response = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse createdOrder = objectMapper.readValue(response, OrderResponse.class);
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/orders/{id}", createdOrder.id())
+                        .with(httpBasic(username, password)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(createdOrder.id().toString()))
+                .andExpect(jsonPath("$.customerId").value(customer.getId().toString()))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.totalAmount").value(50.00));
+    }
+
+    @Test
+    void shouldReturn404WhenOrderDoesNotExist() throws Exception {
+
+        // Arrange
+
+        UUID orderId = UUID.randomUUID();
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/orders/{id}", orderId)
+                        .with(httpBasic(username, password)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value(containsString("Order not found")))
+                .andExpect(jsonPath("$.path").value("/api/v1/orders/" + orderId));
+    }
+
+    @Test
+    void shouldReturnPagedOrders() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 1)
+                )
+        );
+
+        mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].customerId").value(customer.getId().toString()))
+                .andExpect(jsonPath("$.content[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void shouldReturnEmptyPage() throws Exception {
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.totalPages").value(0));
     }
 }

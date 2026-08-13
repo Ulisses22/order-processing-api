@@ -2,7 +2,7 @@ CREATE TABLE orders
 (
     id UUID NOT NULL,
 
-    order_number VARCHAR(30) NOT NULL,
+    order_number VARCHAR(50) NOT NULL,
 
     customer_id UUID NOT NULL,
 
