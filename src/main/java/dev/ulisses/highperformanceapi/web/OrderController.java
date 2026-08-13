@@ -47,4 +47,11 @@ public class OrderController {
 
         return orderService.findAll(pageable);
     }
+
+    @PatchMapping("/{id}/cancel")
+    @Operation(summary = "Cancel an order")
+    public OrderResponse cancel(@PathVariable UUID id) {
+
+        return orderService.cancel(id);
+    }
 }

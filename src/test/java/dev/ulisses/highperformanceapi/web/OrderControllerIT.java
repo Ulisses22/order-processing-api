@@ -6,8 +6,10 @@ import dev.ulisses.highperformanceapi.application.dto.request.OrderItemRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.OrderResponse;
 import dev.ulisses.highperformanceapi.domain.entity.Customer;
 import dev.ulisses.highperformanceapi.domain.entity.Inventory;
+import dev.ulisses.highperformanceapi.domain.entity.Order;
 import dev.ulisses.highperformanceapi.domain.entity.Product;
 import dev.ulisses.highperformanceapi.domain.enums.CustomerStatus;
+import dev.ulisses.highperformanceapi.domain.enums.OrderStatus;
 import dev.ulisses.highperformanceapi.domain.enums.ProductStatus;
 import dev.ulisses.highperformanceapi.domain.repository.CustomerRepository;
 import dev.ulisses.highperformanceapi.domain.repository.InventoryRepository;
@@ -29,8 +31,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -363,5 +364,141 @@ public class OrderControllerIT {
                 .andExpect(jsonPath("$.content.length()").value(0))
                 .andExpect(jsonPath("$.totalElements").value(0))
                 .andExpect(jsonPath("$.totalPages").value(0));
+    }
+
+    @Test
+    void shouldCancelOrderSuccessfully() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                customer.getId(),
+                List.of(new OrderItemRequest(product.getId(), 2))
+        );
+
+        String response = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse createdOrder =
+                objectMapper.readValue(response, OrderResponse.class);
+
+        // Act & Assert
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/cancel", createdOrder.id())
+                        .with(httpBasic(username, password)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(createdOrder.id().toString()))
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+    }
+
+    @Test
+    void shouldReturn404WhenOrderToCancelDoesNotExist() throws Exception {
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/cancel", UUID.randomUUID())
+                        .with(httpBasic(username, password)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message", containsString("Order not found")));
+    }
+
+    @Test
+    void shouldReturn422WhenOrderIsAlreadyCancelled() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                customer.getId(),
+                List.of(new OrderItemRequest(product.getId(), 1))
+        );
+
+        String response = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse order =
+                objectMapper.readValue(response, OrderResponse.class);
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/cancel", order.id())
+                        .with(httpBasic(username, password)))
+                .andExpect(status().isOk());
+
+        // Act & Assert
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/cancel", order.id())
+                        .with(httpBasic(username, password)))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.status").value(422))
+                .andExpect(jsonPath("$.message",
+                        containsString("CANCELLED")));
+    }
+
+    @Test
+    void shouldReturn422WhenOrderIsNotPending() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                customer.getId(),
+                List.of(new OrderItemRequest(product.getId(), 1))
+        );
+
+        String response = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse created =
+                objectMapper.readValue(response, OrderResponse.class);
+
+        Order order = orderRepository.findById(created.id()).orElseThrow();
+        order.setStatus(OrderStatus.SHIPPED);
+        orderRepository.save(order);
+
+        // Act & Assert
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/cancel", created.id())
+                        .with(httpBasic(username, password)))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.status").value(422))
+                .andExpect(jsonPath("$.message",
+                        containsString("SHIPPED")));
     }
 }

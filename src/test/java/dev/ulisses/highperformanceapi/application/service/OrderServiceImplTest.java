@@ -11,6 +11,7 @@ import dev.ulisses.highperformanceapi.application.mapper.OrderMapper;
 import dev.ulisses.highperformanceapi.application.service.impl.OrderServiceImpl;
 import dev.ulisses.highperformanceapi.domain.entity.Customer;
 import dev.ulisses.highperformanceapi.domain.entity.Order;
+import dev.ulisses.highperformanceapi.domain.entity.OrderItem;
 import dev.ulisses.highperformanceapi.domain.entity.Product;
 import dev.ulisses.highperformanceapi.domain.enums.CustomerStatus;
 import dev.ulisses.highperformanceapi.domain.enums.OrderStatus;
@@ -453,6 +454,178 @@ class OrderServiceImplTest {
 
         verify(orderRepository).findAll(pageable);
         verifyNoInteractions(orderMapper);
+    }
+
+    @Test
+    void shouldCancelOrderSuccessfully() {
+
+        // Arrange
+
+        UUID orderId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.PENDING);
+
+        Product product = new Product();
+        product.setId(productId);
+
+        OrderItem orderItem = new OrderItem();
+        orderItem.setProduct(product);
+        orderItem.setQuantity(2);
+
+        order.addItem(orderItem);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.save(order)).thenReturn(order);
+        OrderResponse response = mock(OrderResponse.class);
+        when(orderMapper.toResponse(order)).thenReturn(response);
+
+        // Act
+
+        OrderResponse result = orderService.cancel(orderId);
+
+        // Assert
+
+        assertAll(
+                () -> assertEquals(OrderStatus.CANCELLED, order.getStatus()),
+                () -> assertEquals(response, result)
+        );
+
+        verify(inventoryService).releaseStock(productId, 2);
+        verify(orderRepository).save(order);
+        verify(orderMapper).toResponse(order);
+    }
+
+    @Test
+    void shouldThrowWhenOrderToCancelDoesNotExist() {
+
+        // Arrange
+
+        UUID orderId = UUID.randomUUID();
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.empty());
+
+        // Act & Assert
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> orderService.cancel(orderId)
+        );
+
+        assertEquals(
+                "Order not found with id: " + orderId,
+                exception.getMessage()
+        );
+
+        verify(orderRepository).findById(orderId);
+        verifyNoInteractions(inventoryService);
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldThrowWhenOrderIsAlreadyCancelled() {
+
+        // Arrange
+
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.CANCELLED);
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.of(order));
+
+        // Act & Assert
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> orderService.cancel(orderId)
+        );
+
+        assertEquals(
+                "Order cannot be cancelled because its status is CANCELLED.",
+                exception.getMessage()
+        );
+
+        verify(orderRepository).findById(orderId);
+        verifyNoInteractions(inventoryService);
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldThrowWhenOrderIsNotPending() {
+
+        // Arrange
+
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.SHIPPED);
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.of(order));
+
+        // Act & Assert
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> orderService.cancel(orderId)
+        );
+
+        assertEquals(
+                "Order cannot be cancelled because its status is SHIPPED.",
+                exception.getMessage()
+        );
+
+        verify(orderRepository).findById(orderId);
+        verifyNoInteractions(inventoryService);
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldReleaseReservedInventoryWhenOrderIsCancelled() {
+
+        // Arrange
+
+        UUID orderId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.PENDING);
+
+        Product product = new Product();
+        product.setId(productId);
+
+        OrderItem orderItem = new OrderItem();
+        orderItem.setProduct(product);
+        orderItem.setQuantity(3);
+
+        order.addItem(orderItem);
+
+        OrderResponse response = mock(OrderResponse.class);
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.of(order));
+
+        when(orderRepository.save(order))
+                .thenReturn(order);
+
+        when(orderMapper.toResponse(order))
+                .thenReturn(response);
+
+        // Act
+
+        orderService.cancel(orderId);
+
+        // Assert
+
+        verify(orderRepository).save(order);
     }
 
 }

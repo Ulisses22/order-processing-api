@@ -104,7 +104,16 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderResponse cancel(UUID id) {
-        throw new UnsupportedOperationException("Not implemented yet");
+
+        Order order = getOrder(id);
+
+        validateOrderCanBeCancelled(order);
+
+        releaseReservedInventory(order);
+
+        order.setStatus(OrderStatus.CANCELLED);
+
+        return orderMapper.toResponse(orderRepository.save(order));
     }
 
 
@@ -243,5 +252,32 @@ public class OrderServiceImpl implements OrderService {
         return orderItems;
     }
 
+    private void releaseReservedInventory(Order order) {
 
+        for (OrderItem item : order.getItems()) {
+
+            inventoryService.releaseStock(
+                    item.getProduct().getId(),
+                    item.getQuantity()
+            );
+        }
+    }
+
+    private void validateOrderCanBeCancelled(Order order) {
+
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new BusinessException(
+                    "Order cannot be cancelled because its status is "
+                            + order.getStatus() + "."
+            );
+        }
+    }
+
+    private Order getOrder(UUID orderId) {
+
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Order not found with id: " + orderId
+                ));
+    }
 }
