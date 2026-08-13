@@ -105,7 +105,7 @@ public class InventoryServiceImplTest {
         when(inventoryRepository.findByProductId(productId))
                 .thenReturn(Optional.of(inventory));
 
-        when(inventoryRepository.save(any(Inventory.class)))
+        when(inventoryRepository.saveAndFlush(any(Inventory.class)))
                 .thenReturn(inventory);
 
         when(inventoryMapper.toResponse(inventory))
@@ -116,7 +116,7 @@ public class InventoryServiceImplTest {
         assertEquals(150, inventory.getAvailableQuantity());
         assertEquals(20, inventory.getReservedQuantity());
 
-        verify(inventoryRepository).save(inventory);
+        verify(inventoryRepository).saveAndFlush(inventory);
         verify(inventoryMapper).toResponse(inventory);
     }
 
@@ -131,7 +131,7 @@ public class InventoryServiceImplTest {
         assertEquals(80, inventory.getAvailableQuantity());
         assertEquals(20, inventory.getReservedQuantity());
 
-        verify(inventoryRepository).save(inventory);
+        verify(inventoryRepository).saveAndFlush(inventory);
     }
 
     @Test
@@ -147,7 +147,7 @@ public class InventoryServiceImplTest {
                 () -> inventoryService.reserveStock(productId, 10)
         );
 
-        verify(inventoryRepository, never()).save(any());
+        verify(inventoryRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -164,7 +164,7 @@ public class InventoryServiceImplTest {
         assertEquals(90, inventory.getAvailableQuantity());
         assertEquals(10, inventory.getReservedQuantity());
 
-        verify(inventoryRepository).save(inventory);
+        verify(inventoryRepository).saveAndFlush(inventory);
     }
 
     @Test
@@ -181,7 +181,7 @@ public class InventoryServiceImplTest {
                 () -> inventoryService.updateStock(productId, request)
         );
 
-        verify(inventoryRepository, never()).save(any());
+        verify(inventoryRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -195,7 +195,7 @@ public class InventoryServiceImplTest {
                 () -> inventoryService.releaseStock(productId, 10)
         );
 
-        verify(inventoryRepository, never()).save(any());
+        verify(inventoryRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -209,7 +209,7 @@ public class InventoryServiceImplTest {
                 () -> inventoryService.reserveStock(productId, 10)
         );
 
-        verify(inventoryRepository, never()).save(any());
+        verify(inventoryRepository, never()).saveAndFlush(any());
     }
 
 }
