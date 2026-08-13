@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -20,16 +22,19 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException ex,
             HttpServletRequest request) {
 
-        List<FieldValidationError> fieldErrors = ex.getBindingResult()
+        Map<String, String> errors = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
-                .map(this::mapFieldError)
-                .toList();
+                .collect(Collectors.toMap(
+                        FieldError::getField,
+                        FieldError::getDefaultMessage,
+                        (first, second) -> first
+                ));
 
         ValidationErrorResponse response = buildValidationErrorResponse(
                 HttpStatus.BAD_REQUEST,
                 request.getRequestURI(),
-                fieldErrors
+                errors
         );
 
         return ResponseEntity.badRequest().body(response);
@@ -66,9 +71,9 @@ public class GlobalExceptionHandler {
             BusinessException ex,
             HttpServletRequest request) {
 
-        return ResponseEntity.badRequest()
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
                 .body(buildErrorResponse(
-                        HttpStatus.BAD_REQUEST,
+                        HttpStatus.UNPROCESSABLE_CONTENT,
                         ex.getMessage(),
                         request.getRequestURI()
                 ));
@@ -79,9 +84,9 @@ public class GlobalExceptionHandler {
             InsufficientStockException ex,
             HttpServletRequest request) {
 
-        return ResponseEntity.status(HttpStatus.CONFLICT)
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
                 .body(buildErrorResponse(
-                        HttpStatus.CONFLICT,
+                        HttpStatus.UNPROCESSABLE_CONTENT,
                         ex.getMessage(),
                         request.getRequestURI()
                 ));
@@ -120,14 +125,15 @@ public class GlobalExceptionHandler {
     private ValidationErrorResponse buildValidationErrorResponse(
             HttpStatus status,
             String path,
-            List<FieldValidationError> fieldErrors) {
+            Map<String, String> errors) {
 
         return new ValidationErrorResponse(
                 Instant.now(),
                 status.value(),
-                status.getReasonPhrase(),
+                "Validation Failed",
+                "Request validation failed",
                 path,
-                fieldErrors
+                errors
         );
     }
 
