@@ -628,4 +628,127 @@ class OrderServiceImplTest {
         verify(orderRepository).save(order);
     }
 
+    @Test
+    void shouldUpdateOrderStatusToProcessing() {
+
+        // Arrange
+
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.PENDING);
+
+        OrderResponse response = mock(OrderResponse.class);
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.of(order));
+
+        when(orderRepository.save(order))
+                .thenReturn(order);
+
+        when(orderMapper.toResponse(order))
+                .thenReturn(response);
+
+        // Act
+
+        OrderResponse result = orderService.updateStatus(
+                orderId,
+                OrderStatus.PROCESSING
+        );
+
+        // Assert
+
+        assertAll(
+                () -> assertEquals(OrderStatus.PROCESSING, order.getStatus()),
+                () -> assertSame(response, result)
+        );
+
+        verify(orderRepository).findById(orderId);
+        verify(orderRepository).save(order);
+        verify(orderMapper).toResponse(order);
+    }
+
+    @Test
+    void shouldUpdateOrderStatusToShipped() {
+
+        // Arrange
+
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.PROCESSING);
+
+        OrderResponse response = mock(OrderResponse.class);
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.of(order));
+
+        when(orderRepository.save(order))
+                .thenReturn(order);
+
+        when(orderMapper.toResponse(order))
+                .thenReturn(response);
+
+        // Act
+
+        OrderResponse result = orderService.updateStatus(
+                orderId,
+                OrderStatus.SHIPPED
+        );
+
+        // Assert
+
+        assertAll(
+                () -> assertEquals(OrderStatus.SHIPPED, order.getStatus()),
+                () -> assertSame(response, result)
+        );
+
+        verify(orderRepository).findById(orderId);
+        verify(orderRepository).save(order);
+        verify(orderMapper).toResponse(order);
+    }
+
+    @Test
+    void shouldUpdateOrderStatusToDelivered() {
+
+        // Arrange
+
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setStatus(OrderStatus.SHIPPED);
+
+        OrderResponse response = mock(OrderResponse.class);
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.of(order));
+
+        when(orderRepository.save(order))
+                .thenReturn(order);
+
+        when(orderMapper.toResponse(order))
+                .thenReturn(response);
+
+        // Act
+
+        OrderResponse result = orderService.updateStatus(
+                orderId,
+                OrderStatus.DELIVERED
+        );
+
+        // Assert
+
+        assertAll(
+                () -> assertEquals(OrderStatus.DELIVERED, order.getStatus()),
+                () -> assertSame(response, result)
+        );
+
+        verify(orderRepository).findById(orderId);
+        verify(orderRepository).save(order);
+        verify(orderMapper).toResponse(order);
+    }
+
 }

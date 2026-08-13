@@ -3,6 +3,7 @@ package dev.ulisses.highperformanceapi.web;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreateOrderRequest;
 import dev.ulisses.highperformanceapi.application.dto.request.OrderItemRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.UpdateOrderStatusRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.OrderResponse;
 import dev.ulisses.highperformanceapi.domain.entity.Customer;
 import dev.ulisses.highperformanceapi.domain.entity.Inventory;
@@ -500,5 +501,206 @@ public class OrderControllerIT {
                 .andExpect(jsonPath("$.status").value(422))
                 .andExpect(jsonPath("$.message",
                         containsString("SHIPPED")));
+    }
+
+    @Test
+    void shouldUpdateOrderStatusToProcessing() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 1)
+                )
+        );
+
+        String response = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse order = objectMapper.readValue(response, OrderResponse.class);
+
+        UpdateOrderStatusRequest request = new UpdateOrderStatusRequest(OrderStatus.PROCESSING);
+
+        // Act & Assert
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PROCESSING"));
+    }
+
+    @Test
+    void shouldUpdateOrderStatusToShipped() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 1)
+                )
+        );
+
+        String response = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse order = objectMapper.readValue(response, OrderResponse.class);
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new UpdateOrderStatusRequest(OrderStatus.PROCESSING))))
+                .andExpect(status().isOk());
+
+        // Act & Assert
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new UpdateOrderStatusRequest(OrderStatus.SHIPPED))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SHIPPED"));
+    }
+
+    @Test
+    void shouldUpdateOrderStatusToDelivered() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 1)
+                )
+        );
+
+        String response = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse order = objectMapper.readValue(response, OrderResponse.class);
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new UpdateOrderStatusRequest(OrderStatus.PROCESSING))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new UpdateOrderStatusRequest(OrderStatus.SHIPPED))))
+                .andExpect(status().isOk());
+
+        // Act & Assert
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new UpdateOrderStatusRequest(OrderStatus.DELIVERED))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DELIVERED"));
+    }
+
+    @Test
+    void shouldReturn404WhenOrderToUpdateDoesNotExist() throws Exception {
+
+        UpdateOrderStatusRequest request =
+                new UpdateOrderStatusRequest(OrderStatus.PROCESSING);
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/status", UUID.randomUUID())
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message", containsString("Order not found")));
+    }
+
+    @Test
+    void shouldReturn422WhenStatusTransitionIsInvalid() throws Exception {
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest createRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 1)
+                )
+        );
+
+        String response = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createRequest)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse order = objectMapper.readValue(response, OrderResponse.class);
+
+        UpdateOrderStatusRequest request =
+                new UpdateOrderStatusRequest(OrderStatus.DELIVERED);
+
+        mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.status").value(422));
     }
 }

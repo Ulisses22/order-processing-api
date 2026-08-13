@@ -2,6 +2,7 @@ package dev.ulisses.highperformanceapi.web;
 
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreateOrderRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.UpdateOrderStatusRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.OrderResponse;
 import dev.ulisses.highperformanceapi.application.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,5 +54,18 @@ public class OrderController {
     public OrderResponse cancel(@PathVariable UUID id) {
 
         return orderService.cancel(id);
+    }
+
+    @PatchMapping("/{id}/status")
+    @Operation(summary = "Update order status")
+    public OrderResponse updateStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateOrderStatusRequest request
+    ) {
+
+        return orderService.updateStatus(
+                id,
+                request.status()
+        );
     }
 }

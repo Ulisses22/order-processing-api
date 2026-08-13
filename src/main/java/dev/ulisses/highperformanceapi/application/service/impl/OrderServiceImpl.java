@@ -116,6 +116,21 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.toResponse(orderRepository.save(order));
     }
 
+    @Override
+    public OrderResponse updateStatus(UUID id, OrderStatus newStatus) {
+
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Order not found with id: " + id));
+
+        validateStatusTransition(order, newStatus);
+
+        order.setStatus(newStatus);
+
+        Order updatedOrder = orderRepository.save(order);
+
+        return orderMapper.toResponse(updatedOrder);
+    }
 
     // Helpers
 
@@ -279,5 +294,56 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Order not found with id: " + orderId
                 ));
+    }
+
+    private void validateStatusTransition(
+            Order order,
+            OrderStatus newStatus
+    ) {
+
+        OrderStatus currentStatus = order.getStatus();
+
+        if (currentStatus == newStatus) {
+            throw new BusinessException(
+                    "Order is already in status: " + currentStatus
+            );
+        }
+
+        if (currentStatus == OrderStatus.CANCELLED) {
+            throw new BusinessException(
+                    "Cancelled orders cannot be updated."
+            );
+        }
+
+        if (currentStatus == OrderStatus.DELIVERED) {
+            throw new BusinessException(
+                    "Delivered orders cannot be updated."
+            );
+        }
+
+        boolean validTransition = switch (currentStatus) {
+
+            case PENDING ->
+                    newStatus == OrderStatus.PROCESSING
+                            || newStatus == OrderStatus.CANCELLED;
+
+            case PROCESSING ->
+                    newStatus == OrderStatus.SHIPPED
+                            || newStatus == OrderStatus.CANCELLED;
+
+            case SHIPPED ->
+                    newStatus == OrderStatus.DELIVERED;
+
+            default -> false;
+        };
+
+        if (!validTransition) {
+            throw new BusinessException(
+                    "Invalid status transition from "
+                            + currentStatus
+                            + " to "
+                            + newStatus
+            );
+        }
     }
 }
