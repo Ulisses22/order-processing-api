@@ -2,6 +2,8 @@ package dev.ulisses.highperformanceapi.application.service.impl;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreatePaymentRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.PaymentResponse;
+import dev.ulisses.highperformanceapi.application.event.PaymentAuthorizedEvent;
+import dev.ulisses.highperformanceapi.application.event.PaymentFailedEvent;
 import dev.ulisses.highperformanceapi.application.exception.BusinessException;
 import dev.ulisses.highperformanceapi.application.exception.DuplicateResourceException;
 import dev.ulisses.highperformanceapi.application.exception.ResourceNotFoundException;
@@ -13,6 +15,7 @@ import dev.ulisses.highperformanceapi.domain.enums.OrderStatus;
 import dev.ulisses.highperformanceapi.domain.enums.PaymentStatus;
 import dev.ulisses.highperformanceapi.domain.repository.OrderRepository;
 import dev.ulisses.highperformanceapi.domain.repository.PaymentRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,14 +29,18 @@ public class PaymentServiceImpl implements PaymentService {
     private final OrderRepository orderRepository;
     private final PaymentMapper paymentMapper;
 
+    private final ApplicationEventPublisher eventPublisher;
+
     public PaymentServiceImpl(
             PaymentRepository paymentRepository,
             OrderRepository orderRepository,
-            PaymentMapper paymentMapper
+            PaymentMapper paymentMapper,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.paymentRepository = paymentRepository;
         this.orderRepository = orderRepository;
         this.paymentMapper = paymentMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -97,7 +104,29 @@ public class PaymentServiceImpl implements PaymentService {
 
         Payment updatedPayment = paymentRepository.save(payment);
 
+        publishPaymentEvent(updatedPayment);
+
         return paymentMapper.toResponse(updatedPayment);
+    }
+
+    private void publishPaymentEvent(Payment payment) {
+
+        switch (payment.getStatus()) {
+
+            case AUTHORIZED ->
+                    eventPublisher.publishEvent(
+                            new PaymentAuthorizedEvent(payment.getId(), payment.getOrder().getId())
+                    );
+
+            case FAILED ->
+                    eventPublisher.publishEvent(
+                            new PaymentFailedEvent(payment.getId())
+                    );
+
+            default -> {
+                // No event for other payment statuses yet.
+            }
+        }
     }
 
     private void validateStatusTransition(

@@ -2,6 +2,8 @@ package dev.ulisses.highperformanceapi.application.service;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreatePaymentRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.PaymentResponse;
+import dev.ulisses.highperformanceapi.application.event.PaymentAuthorizedEvent;
+import dev.ulisses.highperformanceapi.application.event.PaymentFailedEvent;
 import dev.ulisses.highperformanceapi.application.exception.BusinessException;
 import dev.ulisses.highperformanceapi.application.exception.DuplicateResourceException;
 import dev.ulisses.highperformanceapi.application.exception.ResourceNotFoundException;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -42,6 +45,9 @@ public class PaymentServiceImplTest {
 
     @InjectMocks
     private PaymentServiceImpl paymentServiceImpl;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Test
     void shouldCreatePayment() {
@@ -472,6 +478,196 @@ public class PaymentServiceImplTest {
 
         verify(paymentRepository).findById(paymentId);
         verify(paymentRepository, never()).save(any());
+        verify(paymentMapper, never()).toResponse(any());
+    }
+
+    @Test
+    void shouldPublishPaymentAuthorizedEvent() {
+
+        UUID paymentId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.PENDING);
+
+        PaymentResponse response = new PaymentResponse(
+                paymentId,
+                orderId,
+                new BigDecimal("150.00"),
+                PaymentMethod.CREDIT_CARD,
+                PaymentStatus.AUTHORIZED,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(paymentRepository.findById(paymentId))
+                .thenReturn(Optional.of(payment));
+
+        when(paymentRepository.save(payment))
+                .thenReturn(payment);
+
+        when(paymentMapper.toResponse(payment))
+                .thenReturn(response);
+
+        PaymentResponse result = paymentServiceImpl.updateStatus(
+                paymentId,
+                PaymentStatus.AUTHORIZED
+        );
+
+        assertNotNull(result);
+        assertEquals(PaymentStatus.AUTHORIZED, result.status());
+
+        verify(paymentRepository).save(payment);
+
+        verify(eventPublisher).publishEvent(
+                new PaymentAuthorizedEvent(paymentId, orderId)
+        );
+    }
+
+    @Test
+    void shouldPublishPaymentFailedEvent() {
+
+        UUID paymentId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.PENDING);
+
+        PaymentResponse response = new PaymentResponse(
+                paymentId,
+                orderId,
+                new BigDecimal("150.00"),
+                PaymentMethod.CREDIT_CARD,
+                PaymentStatus.FAILED,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(paymentRepository.findById(paymentId))
+                .thenReturn(Optional.of(payment));
+
+        when(paymentRepository.save(payment))
+                .thenReturn(payment);
+
+        when(paymentMapper.toResponse(payment))
+                .thenReturn(response);
+
+        PaymentResponse result = paymentServiceImpl.updateStatus(
+                paymentId,
+                PaymentStatus.FAILED
+        );
+
+        assertNotNull(result);
+        assertEquals(PaymentStatus.FAILED, result.status());
+
+        verify(paymentRepository).save(payment);
+
+        verify(eventPublisher).publishEvent(
+                new PaymentFailedEvent(paymentId)
+        );
+    }
+
+    @Test
+    void shouldNotPublishPaymentEventForInvalidTransition() {
+
+        UUID paymentId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.AUTHORIZED);
+
+        when(paymentRepository.findById(paymentId))
+                .thenReturn(Optional.of(payment));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> paymentServiceImpl.updateStatus(
+                        paymentId,
+                        PaymentStatus.FAILED
+                )
+        );
+
+        assertEquals(
+                "Invalid payment status transition from AUTHORIZED to FAILED",
+                exception.getMessage()
+        );
+
+        verify(paymentRepository).findById(paymentId);
+        verify(paymentRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+        verify(paymentMapper, never()).toResponse(any());
+    }
+
+    @Test
+    void shouldNotPublishPaymentEventForSameStatus() {
+
+        UUID paymentId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.AUTHORIZED);
+
+        when(paymentRepository.findById(paymentId))
+                .thenReturn(Optional.of(payment));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> paymentServiceImpl.updateStatus(
+                        paymentId,
+                        PaymentStatus.AUTHORIZED
+                )
+        );
+
+        assertEquals(
+                "Payment is already in status: AUTHORIZED",
+                exception.getMessage()
+        );
+
+        assertEquals(PaymentStatus.AUTHORIZED, payment.getStatus());
+
+        verify(paymentRepository).findById(paymentId);
+        verify(paymentRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
         verify(paymentMapper, never()).toResponse(any());
     }
 }

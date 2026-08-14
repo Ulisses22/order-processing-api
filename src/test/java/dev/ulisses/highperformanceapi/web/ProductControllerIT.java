@@ -1,8 +1,7 @@
 package dev.ulisses.highperformanceapi.web;
 
 
-import dev.ulisses.highperformanceapi.application.dto.request.CreateProductRequest;
-import dev.ulisses.highperformanceapi.application.dto.request.UpdateProductRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.*;
 import dev.ulisses.highperformanceapi.domain.entity.Product;
 import dev.ulisses.highperformanceapi.domain.enums.ProductStatus;
 import dev.ulisses.highperformanceapi.domain.repository.ProductRepository;

@@ -689,4 +689,86 @@ public class PaymentControllerIT {
                         .value("/api/v1/payments/" + paymentId + "/status"));
     }
 
+    @Test
+    void shouldMoveOrderToProcessingWhenPaymentIsAuthorized() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest orderRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 2)
+                )
+        );
+
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse createdOrder = objectMapper.readValue(
+                orderResponse,
+                OrderResponse.class
+        );
+
+        CreatePaymentRequest paymentRequest = new CreatePaymentRequest(
+                createdOrder.id(),
+                PaymentMethod.CREDIT_CARD
+        );
+
+        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(paymentRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        PaymentResponse createdPayment = objectMapper.readValue(
+                paymentResponse,
+                PaymentResponse.class
+        );
+
+        UpdatePaymentStatusRequest statusRequest =
+                new UpdatePaymentStatusRequest(PaymentStatus.AUTHORIZED);
+
+        // Act
+
+        mockMvc.perform(patch(
+                        "/api/v1/payments/{id}/status",
+                        createdPayment.id()
+                )
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(statusRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AUTHORIZED"));
+
+        // Assert
+
+        mockMvc.perform(get(
+                        "/api/v1/orders/{id}",
+                        createdOrder.id()
+                )
+                        .with(httpBasic(username, password)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id")
+                        .value(createdOrder.id().toString()))
+                .andExpect(jsonPath("$.status")
+                        .value("PROCESSING"));
+    }
+
 }
