@@ -1,13 +1,17 @@
 package dev.ulisses.highperformanceapi.application.service.impl;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreatePaymentRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.PaymentGatewayRequest;
 import dev.ulisses.highperformanceapi.application.dto.request.PaymentSearchRequest;
+import dev.ulisses.highperformanceapi.application.dto.response.PaymentGatewayResponse;
 import dev.ulisses.highperformanceapi.application.dto.response.PaymentResponse;
 import dev.ulisses.highperformanceapi.application.event.PaymentAuthorizedEvent;
+import dev.ulisses.highperformanceapi.application.event.PaymentEventPublisher;
 import dev.ulisses.highperformanceapi.application.event.PaymentFailedEvent;
 import dev.ulisses.highperformanceapi.application.exception.BusinessException;
 import dev.ulisses.highperformanceapi.application.exception.DuplicateResourceException;
 import dev.ulisses.highperformanceapi.application.exception.ResourceNotFoundException;
+import dev.ulisses.highperformanceapi.application.gateway.PaymentGateway;
 import dev.ulisses.highperformanceapi.application.mapper.PaymentMapper;
 import dev.ulisses.highperformanceapi.application.service.PaymentService;
 import dev.ulisses.highperformanceapi.domain.entity.Order;
@@ -32,6 +36,8 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final PaymentMapper paymentMapper;
+    private final PaymentGateway paymentGateway;
+    private final PaymentEventPublisher paymentEventPublisher;
 
     private final ApplicationEventPublisher eventPublisher;
 
@@ -39,12 +45,16 @@ public class PaymentServiceImpl implements PaymentService {
             PaymentRepository paymentRepository,
             OrderRepository orderRepository,
             PaymentMapper paymentMapper,
-            ApplicationEventPublisher eventPublisher
+            ApplicationEventPublisher eventPublisher,
+            PaymentGateway paymentGateway,
+            PaymentEventPublisher paymentEventPublisher
     ) {
         this.paymentRepository = paymentRepository;
         this.orderRepository = orderRepository;
         this.paymentMapper = paymentMapper;
         this.eventPublisher = eventPublisher;
+        this.paymentGateway = paymentGateway;
+        this.paymentEventPublisher = paymentEventPublisher;
     }
 
     @Override
@@ -64,7 +74,51 @@ public class PaymentServiceImpl implements PaymentService {
 
         Payment savedPayment = paymentRepository.save(payment);
 
-        return paymentMapper.toResponse(savedPayment);
+        PaymentGatewayRequest gatewayRequest =
+                new PaymentGatewayRequest(
+                        savedPayment.getId(),
+                        order.getId(),
+                        savedPayment.getAmount(),
+                        savedPayment.getMethod()
+                );
+
+        PaymentGatewayResponse gatewayResponse =
+                paymentGateway.process(gatewayRequest);
+
+        if (gatewayResponse.successful()) {
+
+            savedPayment.setStatus(PaymentStatus.AUTHORIZED);
+
+            savedPayment.setTransactionId(
+                    gatewayResponse.transactionId()
+            );
+
+            savedPayment.setAuthorizationCode(
+                    gatewayResponse.authorizationCode()
+            );
+
+            paymentEventPublisher.publish(
+                    new PaymentAuthorizedEvent(
+                            savedPayment.getId(),
+                            savedPayment.getOrder().getId()
+                    )
+            );
+
+        } else {
+
+            savedPayment.setStatus(PaymentStatus.FAILED);
+
+            paymentEventPublisher.publish(
+                    new PaymentFailedEvent(
+                            savedPayment.getId()
+                    )
+            );
+        }
+
+        Payment updatedPayment =
+                paymentRepository.save(savedPayment);
+
+        return paymentMapper.toResponse(updatedPayment);
     }
 
     private Order getOrder(UUID orderId) {
