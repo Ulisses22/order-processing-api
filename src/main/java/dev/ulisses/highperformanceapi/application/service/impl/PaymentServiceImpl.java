@@ -1,6 +1,7 @@
 package dev.ulisses.highperformanceapi.application.service.impl;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreatePaymentRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.PaymentSearchRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.PaymentResponse;
 import dev.ulisses.highperformanceapi.application.event.PaymentAuthorizedEvent;
 import dev.ulisses.highperformanceapi.application.event.PaymentFailedEvent;
@@ -15,7 +16,10 @@ import dev.ulisses.highperformanceapi.domain.enums.OrderStatus;
 import dev.ulisses.highperformanceapi.domain.enums.PaymentStatus;
 import dev.ulisses.highperformanceapi.domain.repository.OrderRepository;
 import dev.ulisses.highperformanceapi.domain.repository.PaymentRepository;
+import dev.ulisses.highperformanceapi.domain.specification.PaymentSpecification;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -159,5 +163,20 @@ public class PaymentServiceImpl implements PaymentService {
                             + newStatus
             );
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<PaymentResponse> search(
+            PaymentSearchRequest request,
+            Pageable pageable
+    ) {
+
+        return paymentRepository
+                .findAll(
+                        PaymentSpecification.withFilters(request),
+                        pageable
+                )
+                .map(paymentMapper::toResponse);
     }
 }

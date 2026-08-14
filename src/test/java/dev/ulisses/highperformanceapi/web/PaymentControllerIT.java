@@ -5,6 +5,7 @@ import dev.ulisses.highperformanceapi.application.dto.response.OrderResponse;
 import dev.ulisses.highperformanceapi.application.dto.response.PaymentResponse;
 import dev.ulisses.highperformanceapi.domain.entity.Customer;
 import dev.ulisses.highperformanceapi.domain.entity.Inventory;
+import dev.ulisses.highperformanceapi.domain.entity.Payment;
 import dev.ulisses.highperformanceapi.domain.entity.Product;
 import dev.ulisses.highperformanceapi.domain.enums.*;
 import dev.ulisses.highperformanceapi.domain.repository.*;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -769,6 +771,403 @@ public class PaymentControllerIT {
                         .value(createdOrder.id().toString()))
                 .andExpect(jsonPath("$.status")
                         .value("PROCESSING"));
+    }
+
+    @Test
+    void shouldSearchPaymentsByStatus() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest orderRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 2)
+                )
+        );
+
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse createdOrder = objectMapper.readValue(
+                orderResponse,
+                OrderResponse.class
+        );
+
+        CreatePaymentRequest paymentRequest = new CreatePaymentRequest(
+                createdOrder.id(),
+                PaymentMethod.CREDIT_CARD
+        );
+
+        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(paymentRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        PaymentResponse createdPayment = objectMapper.readValue(
+                paymentResponse,
+                PaymentResponse.class
+        );
+
+        // Change payment to AUTHORIZED
+
+        UpdatePaymentStatusRequest statusRequest =
+                new UpdatePaymentStatusRequest(PaymentStatus.AUTHORIZED);
+
+        mockMvc.perform(patch(
+                        "/api/v1/payments/{id}/status",
+                        createdPayment.id()
+                )
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(statusRequest)))
+                .andExpect(status().isOk());
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .param("status", "AUTHORIZED")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id")
+                        .value(createdPayment.id().toString()))
+                .andExpect(jsonPath("$.content[0].orderId")
+                        .value(createdOrder.id().toString()))
+                .andExpect(jsonPath("$.content[0].status")
+                        .value("AUTHORIZED"))
+                .andExpect(jsonPath("$.content[0].paymentMethod")
+                        .value("CREDIT_CARD"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void shouldSearchPaymentsByOrderId() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest orderRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 2)
+                )
+        );
+
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse createdOrder = objectMapper.readValue(
+                orderResponse,
+                OrderResponse.class
+        );
+
+        CreatePaymentRequest paymentRequest = new CreatePaymentRequest(
+                createdOrder.id(),
+                PaymentMethod.CREDIT_CARD
+        );
+
+        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(paymentRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        PaymentResponse createdPayment = objectMapper.readValue(
+                paymentResponse,
+                PaymentResponse.class
+        );
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .param("orderId", createdOrder.id().toString())
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id")
+                        .value(createdPayment.id().toString()))
+                .andExpect(jsonPath("$.content[0].orderId")
+                        .value(createdOrder.id().toString()))
+                .andExpect(jsonPath("$.content[0].amount")
+                        .value(50.00))
+                .andExpect(jsonPath("$.content[0].paymentMethod")
+                        .value("CREDIT_CARD"))
+                .andExpect(jsonPath("$.content[0].status")
+                        .value("PENDING"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void shouldSearchPaymentsByPaymentMethod() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest orderRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 2)
+                )
+        );
+
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse createdOrder = objectMapper.readValue(
+                orderResponse,
+                OrderResponse.class
+        );
+
+        CreatePaymentRequest paymentRequest = new CreatePaymentRequest(
+                createdOrder.id(),
+                PaymentMethod.PAYPAL
+        );
+
+        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(paymentRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        PaymentResponse createdPayment = objectMapper.readValue(
+                paymentResponse,
+                PaymentResponse.class
+        );
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .param("paymentMethod", "PAYPAL")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id")
+                        .value(createdPayment.id().toString()))
+                .andExpect(jsonPath("$.content[0].orderId")
+                        .value(createdOrder.id().toString()))
+                .andExpect(jsonPath("$.content[0].amount")
+                        .value(50.00))
+                .andExpect(jsonPath("$.content[0].paymentMethod")
+                        .value("PAYPAL"))
+                .andExpect(jsonPath("$.content[0].status")
+                        .value("PENDING"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void shouldSearchPaymentsByCreatedDateRange() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest orderRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 2)
+                )
+        );
+
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse createdOrder = objectMapper.readValue(
+                orderResponse,
+                OrderResponse.class
+        );
+
+        CreatePaymentRequest paymentRequest = new CreatePaymentRequest(
+                createdOrder.id(),
+                PaymentMethod.CREDIT_CARD
+        );
+
+        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(paymentRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        PaymentResponse createdPayment = objectMapper.readValue(
+                paymentResponse,
+                PaymentResponse.class
+        );
+
+        Instant paymentCreatedAt = createdPayment.createdAt();
+
+        Instant createdFrom = paymentCreatedAt.minusSeconds(60);
+
+        Instant createdTo = paymentCreatedAt.plusSeconds(60);
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .param("createdFrom", createdFrom.toString())
+                        .param("createdTo", createdTo.toString())
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id")
+                        .value(createdPayment.id().toString()))
+                .andExpect(jsonPath("$.content[0].orderId")
+                        .value(createdOrder.id().toString()))
+                .andExpect(jsonPath("$.content[0].paymentMethod")
+                        .value("CREDIT_CARD"))
+                .andExpect(jsonPath("$.content[0].status")
+                        .value("PENDING"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void shouldReturnEmptyPageWhenPaymentIsOutsideCreatedDateRange() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest orderRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 2)
+                )
+        );
+
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse createdOrder = objectMapper.readValue(
+                orderResponse,
+                OrderResponse.class
+        );
+
+        CreatePaymentRequest paymentRequest = new CreatePaymentRequest(
+                createdOrder.id(),
+                PaymentMethod.CREDIT_CARD
+        );
+
+        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(paymentRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        PaymentResponse createdPayment = objectMapper.readValue(
+                paymentResponse,
+                PaymentResponse.class
+        );
+
+        // The payment was just created.
+        // Search for a completely different date range.
+
+        Instant paymentCreatedAt = createdPayment.createdAt();
+
+        Instant createdFrom = paymentCreatedAt.plusSeconds(60);
+        Instant createdTo = paymentCreatedAt.plusSeconds(120);
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .param("createdFrom", createdFrom.toString())
+                        .param("createdTo", createdTo.toString())
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.totalPages").value(0));
     }
 
 }

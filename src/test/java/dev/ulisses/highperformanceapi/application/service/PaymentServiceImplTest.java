@@ -1,6 +1,7 @@
 package dev.ulisses.highperformanceapi.application.service;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreatePaymentRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.PaymentSearchRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.PaymentResponse;
 import dev.ulisses.highperformanceapi.application.event.PaymentAuthorizedEvent;
 import dev.ulisses.highperformanceapi.application.event.PaymentFailedEvent;
@@ -22,8 +23,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -670,4 +677,314 @@ public class PaymentServiceImplTest {
         verify(eventPublisher, never()).publishEvent(any());
         verify(paymentMapper, never()).toResponse(any());
     }
+
+    @Test
+    void shouldSearchPaymentsByStatus() {
+
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.AUTHORIZED);
+
+        PaymentResponse response = new PaymentResponse(
+                paymentId,
+                orderId,
+                new BigDecimal("150.00"),
+                PaymentMethod.CREDIT_CARD,
+                PaymentStatus.AUTHORIZED,
+                null,
+                null,
+                null,
+                null
+        );
+
+        PaymentSearchRequest request = new PaymentSearchRequest(
+                null,
+                PaymentStatus.AUTHORIZED,
+                null,
+                null,
+                null,
+                null
+        );
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Page<Payment> paymentPage = new PageImpl<>(
+                List.of(payment),
+                pageable,
+                1
+        );
+
+        when(paymentRepository.findAll(
+                any(Specification.class),
+                eq(pageable)
+        )).thenReturn(paymentPage);
+
+        when(paymentMapper.toResponse(payment))
+                .thenReturn(response);
+
+        Page<PaymentResponse> result =
+                paymentServiceImpl.search(request, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(1, result.getContent().size());
+        assertEquals(paymentId, result.getContent().getFirst().id());
+        assertEquals(
+                PaymentStatus.AUTHORIZED,
+                result.getContent().getFirst().status()
+        );
+
+        verify(paymentRepository).findAll(
+                any(Specification.class),
+                eq(pageable)
+        );
+
+        verify(paymentMapper).toResponse(payment);
+    }
+
+    @Test
+    void shouldSearchPaymentsByOrderId() {
+
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.PENDING);
+
+        PaymentResponse response = new PaymentResponse(
+                paymentId,
+                orderId,
+                new BigDecimal("150.00"),
+                PaymentMethod.CREDIT_CARD,
+                PaymentStatus.PENDING,
+                null,
+                null,
+                null,
+                null
+        );
+
+        PaymentSearchRequest request = new PaymentSearchRequest(
+                orderId,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Page<Payment> paymentPage = new PageImpl<>(
+                List.of(payment),
+                pageable,
+                1
+        );
+
+        when(paymentRepository.findAll(
+                any(Specification.class),
+                eq(pageable)
+        )).thenReturn(paymentPage);
+
+        when(paymentMapper.toResponse(payment))
+                .thenReturn(response);
+
+        Page<PaymentResponse> result =
+                paymentServiceImpl.search(request, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(1, result.getContent().size());
+
+        PaymentResponse resultPayment = result.getContent().getFirst();
+
+        assertEquals(paymentId, resultPayment.id());
+        assertEquals(orderId, resultPayment.orderId());
+        assertEquals(PaymentStatus.PENDING, resultPayment.status());
+
+        verify(paymentRepository).findAll(
+                any(Specification.class),
+                eq(pageable)
+        );
+
+        verify(paymentMapper).toResponse(payment);
+    }
+
+    @Test
+    void shouldSearchPaymentsByPaymentMethod() {
+
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.PAYPAL);
+        payment.setStatus(PaymentStatus.PENDING);
+
+        PaymentResponse response = new PaymentResponse(
+                paymentId,
+                orderId,
+                new BigDecimal("150.00"),
+                PaymentMethod.PAYPAL,
+                PaymentStatus.PENDING,
+                null,
+                null,
+                null,
+                null
+        );
+
+        PaymentSearchRequest request = new PaymentSearchRequest(
+                null,
+                null,
+                PaymentMethod.PAYPAL,
+                null,
+                null,
+                null
+        );
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Page<Payment> paymentPage = new PageImpl<>(
+                List.of(payment),
+                pageable,
+                1
+        );
+
+        when(paymentRepository.findAll(
+                any(Specification.class),
+                eq(pageable)
+        )).thenReturn(paymentPage);
+
+        when(paymentMapper.toResponse(payment))
+                .thenReturn(response);
+
+        Page<PaymentResponse> result =
+                paymentServiceImpl.search(request, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(1, result.getContent().size());
+
+        PaymentResponse resultPayment =
+                result.getContent().getFirst();
+
+        assertEquals(paymentId, resultPayment.id());
+        assertEquals(orderId, resultPayment.orderId());
+        assertEquals(PaymentMethod.PAYPAL, resultPayment.paymentMethod());
+        assertEquals(PaymentStatus.PENDING, resultPayment.status());
+
+        verify(paymentRepository).findAll(
+                any(Specification.class),
+                eq(pageable)
+        );
+
+        verify(paymentMapper).toResponse(payment);
+    }
+
+    @Test
+    void shouldSearchPaymentsByTransactionId() {
+
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.AUTHORIZED);
+        payment.setTransactionId("TXN-123456");
+
+        PaymentResponse response = new PaymentResponse(
+                paymentId,
+                orderId,
+                new BigDecimal("150.00"),
+                PaymentMethod.CREDIT_CARD,
+                PaymentStatus.AUTHORIZED,
+                "TXN-123456",
+                null,
+                null,
+                null
+        );
+
+        PaymentSearchRequest request = new PaymentSearchRequest(
+                null,
+                null,
+                null,
+                "TXN-123456",
+                null,
+                null
+        );
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Page<Payment> paymentPage = new PageImpl<>(
+                List.of(payment),
+                pageable,
+                1
+        );
+
+        when(paymentRepository.findAll(
+                any(Specification.class),
+                eq(pageable)
+        )).thenReturn(paymentPage);
+
+        when(paymentMapper.toResponse(payment))
+                .thenReturn(response);
+
+        Page<PaymentResponse> result =
+                paymentServiceImpl.search(request, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(1, result.getContent().size());
+
+        PaymentResponse resultPayment =
+                result.getContent().getFirst();
+
+        assertEquals(paymentId, resultPayment.id());
+        assertEquals(orderId, resultPayment.orderId());
+        assertEquals("TXN-123456", resultPayment.transactionId());
+        assertEquals(PaymentStatus.AUTHORIZED, resultPayment.status());
+
+        verify(paymentRepository).findAll(
+                any(Specification.class),
+                eq(pageable)
+        );
+
+        verify(paymentMapper).toResponse(payment);
+    }
+
+
 }
