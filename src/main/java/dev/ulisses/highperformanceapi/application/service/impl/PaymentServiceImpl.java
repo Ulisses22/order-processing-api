@@ -82,4 +82,53 @@ public class PaymentServiceImpl implements PaymentService {
             );
         }
     }
+
+    @Override
+    public PaymentResponse updateStatus(UUID id, PaymentStatus newStatus) {
+
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Payment not found with id: " + id
+                ));
+
+        validateStatusTransition(payment, newStatus);
+
+        payment.setStatus(newStatus);
+
+        Payment updatedPayment = paymentRepository.save(payment);
+
+        return paymentMapper.toResponse(updatedPayment);
+    }
+
+    private void validateStatusTransition(
+            Payment payment,
+            PaymentStatus newStatus
+    ) {
+
+        PaymentStatus currentStatus = payment.getStatus();
+
+        if (currentStatus == newStatus) {
+            throw new BusinessException(
+                    "Payment is already in status: " + currentStatus
+            );
+        }
+
+        boolean validTransition = switch (currentStatus) {
+
+            case PENDING ->
+                    newStatus == PaymentStatus.AUTHORIZED
+                            || newStatus == PaymentStatus.FAILED;
+
+            default -> false;
+        };
+
+        if (!validTransition) {
+            throw new BusinessException(
+                    "Invalid payment status transition from "
+                            + currentStatus
+                            + " to "
+                            + newStatus
+            );
+        }
+    }
 }

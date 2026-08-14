@@ -65,8 +65,6 @@ public class PaymentServiceImplTest {
         payment.setMethod(PaymentMethod.CREDIT_CARD);
         payment.setStatus(PaymentStatus.PENDING);
 
-        Payment savedPayment = payment;
-
         PaymentResponse response = new PaymentResponse(
                 paymentId,
                 orderId,
@@ -89,9 +87,9 @@ public class PaymentServiceImplTest {
                 .thenReturn(payment);
 
         when(paymentRepository.save(payment))
-                .thenReturn(savedPayment);
+                .thenReturn(payment);
 
-        when(paymentMapper.toResponse(savedPayment))
+        when(paymentMapper.toResponse(payment))
                 .thenReturn(response);
 
         PaymentResponse result = paymentServiceImpl.create(request);
@@ -107,7 +105,7 @@ public class PaymentServiceImplTest {
         verify(paymentRepository).existsByOrderId(orderId);
         verify(paymentMapper).toEntity(request);
         verify(paymentRepository).save(payment);
-        verify(paymentMapper).toResponse(savedPayment);
+        verify(paymentMapper).toResponse(payment);
     }
 
     @Test
@@ -261,5 +259,219 @@ public class PaymentServiceImplTest {
         assertEquals(orderTotal, payment.getAmount());
 
         verify(paymentRepository).save(payment);
+    }
+
+    @Test
+    void shouldAuthorizePayment() {
+
+        UUID paymentId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.PENDING);
+
+        PaymentResponse response = new PaymentResponse(
+                paymentId,
+                orderId,
+                new BigDecimal("150.00"),
+                PaymentMethod.CREDIT_CARD,
+                PaymentStatus.AUTHORIZED,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(paymentRepository.findById(paymentId))
+                .thenReturn(Optional.of(payment));
+
+        when(paymentRepository.save(payment))
+                .thenReturn(payment);
+
+        when(paymentMapper.toResponse(payment))
+                .thenReturn(response);
+
+        PaymentResponse result = paymentServiceImpl.updateStatus(
+                paymentId,
+                PaymentStatus.AUTHORIZED
+        );
+
+        assertNotNull(result);
+        assertEquals(paymentId, result.id());
+        assertEquals(PaymentStatus.AUTHORIZED, result.status());
+
+        assertEquals(PaymentStatus.AUTHORIZED, payment.getStatus());
+
+        verify(paymentRepository).findById(paymentId);
+        verify(paymentRepository).save(payment);
+        verify(paymentMapper).toResponse(payment);
+    }
+
+    @Test
+    void shouldFailPayment() {
+
+        UUID paymentId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.PENDING);
+
+        PaymentResponse response = new PaymentResponse(
+                paymentId,
+                orderId,
+                new BigDecimal("150.00"),
+                PaymentMethod.CREDIT_CARD,
+                PaymentStatus.FAILED,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(paymentRepository.findById(paymentId))
+                .thenReturn(Optional.of(payment));
+
+        when(paymentRepository.save(payment))
+                .thenReturn(payment);
+
+        when(paymentMapper.toResponse(payment))
+                .thenReturn(response);
+
+        PaymentResponse result = paymentServiceImpl.updateStatus(
+                paymentId,
+                PaymentStatus.FAILED
+        );
+
+        assertNotNull(result);
+        assertEquals(paymentId, result.id());
+        assertEquals(PaymentStatus.FAILED, result.status());
+
+        assertEquals(PaymentStatus.FAILED, payment.getStatus());
+
+        verify(paymentRepository).findById(paymentId);
+        verify(paymentRepository).save(payment);
+        verify(paymentMapper).toResponse(payment);
+    }
+
+    @Test
+    void shouldRejectInvalidPaymentStatusTransition() {
+
+        UUID paymentId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.AUTHORIZED);
+
+        when(paymentRepository.findById(paymentId))
+                .thenReturn(Optional.of(payment));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> paymentServiceImpl.updateStatus(
+                        paymentId,
+                        PaymentStatus.FAILED
+                )
+        );
+
+        assertEquals(
+                "Invalid payment status transition from AUTHORIZED to FAILED",
+                exception.getMessage()
+        );
+
+        assertEquals(PaymentStatus.AUTHORIZED, payment.getStatus());
+
+        verify(paymentRepository).findById(paymentId);
+        verify(paymentRepository, never()).save(any());
+        verify(paymentMapper, never()).toResponse(any());
+    }
+
+    @Test
+    void shouldRejectPaymentWhenAlreadyInSameStatus() {
+
+        UUID paymentId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.AUTHORIZED);
+
+        when(paymentRepository.findById(paymentId))
+                .thenReturn(Optional.of(payment));
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> paymentServiceImpl.updateStatus(
+                        paymentId,
+                        PaymentStatus.AUTHORIZED
+                )
+        );
+
+        assertEquals(
+                "Payment is already in status: AUTHORIZED",
+                exception.getMessage()
+        );
+
+        assertEquals(PaymentStatus.AUTHORIZED, payment.getStatus());
+
+        verify(paymentRepository).findById(paymentId);
+        verify(paymentRepository, never()).save(any());
+        verify(paymentMapper, never()).toResponse(any());
+    }
+
+    @Test
+    void shouldReturn404WhenPaymentDoesNotExist() {
+
+        UUID paymentId = UUID.randomUUID();
+
+        when(paymentRepository.findById(paymentId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> paymentServiceImpl.updateStatus(
+                        paymentId,
+                        PaymentStatus.AUTHORIZED
+                )
+        );
+
+        assertEquals(
+                "Payment not found with id: " + paymentId,
+                exception.getMessage()
+        );
+
+        verify(paymentRepository).findById(paymentId);
+        verify(paymentRepository, never()).save(any());
+        verify(paymentMapper, never()).toResponse(any());
     }
 }

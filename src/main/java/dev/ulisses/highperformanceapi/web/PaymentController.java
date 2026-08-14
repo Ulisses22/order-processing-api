@@ -1,6 +1,7 @@
 package dev.ulisses.highperformanceapi.web;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreatePaymentRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.UpdatePaymentStatusRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.PaymentResponse;
 import dev.ulisses.highperformanceapi.application.service.PaymentService;
 import jakarta.validation.Valid;
@@ -8,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/payments")
@@ -29,5 +31,17 @@ public class PaymentController {
         return ResponseEntity
                 .created(URI.create("/api/v1/payments/" + response.id()))
                 .body(response);
+    }
+
+    @PatchMapping("/{id}/status")
+    public PaymentResponse updateStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdatePaymentStatusRequest request
+    ) {
+
+        return paymentService.updateStatus(
+                id,
+                request.status()
+        );
     }
 }

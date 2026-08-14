@@ -191,7 +191,7 @@ public class OrderControllerIT {
                         .with(httpBasic(username, password))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.status").value(422))
                 .andExpect(jsonPath("$.message").value("Insufficient inventory."))
                 .andExpect(jsonPath("$.path").value("/api/v1/orders"));
