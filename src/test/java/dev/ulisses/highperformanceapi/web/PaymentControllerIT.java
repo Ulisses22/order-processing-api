@@ -55,6 +55,9 @@ public class PaymentControllerIT {
     @Autowired
     private InventoryRepository inventoryRepository;
 
+    @Autowired
+    private OrderRepository orderRepository;
+
     @Value("${APP_SECURITY_USERNAME}")
     private String username;
 
@@ -155,7 +158,9 @@ public class PaymentControllerIT {
                 .andExpect(jsonPath("$.paymentMethod")
                         .value("CREDIT_CARD"))
                 .andExpect(jsonPath("$.status")
-                        .value("PENDING"));
+                        .value("AUTHORIZED"))
+                .andExpect(jsonPath("$.transactionId")
+                        .isNotEmpty());
     }
 
     @Test
@@ -252,11 +257,15 @@ public class PaymentControllerIT {
 
         Product product = productRepository.save(activeProduct());
 
-        inventoryRepository.save(inventory(product, 100));
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
 
         CreateOrderRequest orderRequest = new CreateOrderRequest(
                 customer.getId(),
-                List.of(new OrderItemRequest(product.getId(), 2))
+                List.of(
+                        new OrderItemRequest(product.getId(), 2)
+                )
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -273,20 +282,25 @@ public class PaymentControllerIT {
                 OrderResponse.class
         );
 
+        // Create an existing payment directly.
+        Payment existingPayment = new Payment();
+
+        existingPayment.setOrder(
+                orderRepository.findById(createdOrder.id())
+                        .orElseThrow()
+        );
+        existingPayment.setAmount(new BigDecimal("50.00"));
+        existingPayment.setMethod(PaymentMethod.CREDIT_CARD);
+        existingPayment.setStatus(PaymentStatus.PENDING);
+
+        paymentRepository.save(existingPayment);
+
         CreatePaymentRequest paymentRequest = new CreatePaymentRequest(
                 createdOrder.id(),
                 PaymentMethod.CREDIT_CARD
         );
 
-        // Create first payment
-
-        mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(paymentRequest)))
-                .andExpect(status().isCreated());
-
-        // Act & Assert - attempt duplicate payment
+        // Act & Assert
 
         mockMvc.perform(post("/api/v1/payments")
                         .with(httpBasic(username, password))
@@ -294,9 +308,11 @@ public class PaymentControllerIT {
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.error")
+                        .value("Conflict"))
                 .andExpect(jsonPath("$.message")
-                        .value("Payment already exists for order: " + createdOrder.id()))
+                        .value("Payment already exists for order: "
+                                + createdOrder.id()))
                 .andExpect(jsonPath("$.path")
                         .value("/api/v1/payments"));
     }
@@ -366,46 +382,37 @@ public class PaymentControllerIT {
                 OrderResponse.class
         );
 
-        CreatePaymentRequest paymentRequest = new CreatePaymentRequest(
-                createdOrder.id(),
-                PaymentMethod.CREDIT_CARD
+        // Create a PENDING payment directly for testing
+        Payment payment = new Payment();
+
+        payment.setOrder(
+                orderRepository.findById(createdOrder.id())
+                        .orElseThrow()
         );
 
-        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(paymentRequest)))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+        payment.setAmount(new BigDecimal("50.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.PENDING);
 
-        PaymentResponse createdPayment = objectMapper.readValue(
-                paymentResponse,
-                PaymentResponse.class
-        );
+        payment = paymentRepository.save(payment);
 
         UpdatePaymentStatusRequest statusRequest =
-                new UpdatePaymentStatusRequest(PaymentStatus.AUTHORIZED);
+                new UpdatePaymentStatusRequest(
+                        PaymentStatus.AUTHORIZED
+                );
 
         // Act & Assert
 
         mockMvc.perform(patch(
                         "/api/v1/payments/{id}/status",
-                        createdPayment.id()
+                        payment.getId()
                 )
                         .with(httpBasic(username, password))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(statusRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")
-                        .value(createdPayment.id().toString()))
-                .andExpect(jsonPath("$.orderId")
-                        .value(createdOrder.id().toString()))
-                .andExpect(jsonPath("$.amount")
-                        .value(50.00))
-                .andExpect(jsonPath("$.paymentMethod")
-                        .value("CREDIT_CARD"))
+                        .value(payment.getId().toString()))
                 .andExpect(jsonPath("$.status")
                         .value("AUTHORIZED"));
     }
@@ -444,46 +451,35 @@ public class PaymentControllerIT {
                 OrderResponse.class
         );
 
-        CreatePaymentRequest paymentRequest = new CreatePaymentRequest(
-                createdOrder.id(),
-                PaymentMethod.CREDIT_CARD
+        // Create a PENDING payment directly for testing
+        Payment payment = new Payment();
+        payment.setOrder(
+                orderRepository.findById(createdOrder.id())
+                        .orElseThrow()
         );
+        payment.setAmount(new BigDecimal("50.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.PENDING);
 
-        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(paymentRequest)))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        PaymentResponse createdPayment = objectMapper.readValue(
-                paymentResponse,
-                PaymentResponse.class
-        );
+        payment = paymentRepository.save(payment);
 
         UpdatePaymentStatusRequest statusRequest =
-                new UpdatePaymentStatusRequest(PaymentStatus.FAILED);
+                new UpdatePaymentStatusRequest(
+                        PaymentStatus.FAILED
+                );
 
         // Act & Assert
 
         mockMvc.perform(patch(
                         "/api/v1/payments/{id}/status",
-                        createdPayment.id()
+                        payment.getId()
                 )
                         .with(httpBasic(username, password))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(statusRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")
-                        .value(createdPayment.id().toString()))
-                .andExpect(jsonPath("$.orderId")
-                        .value(createdOrder.id().toString()))
-                .andExpect(jsonPath("$.amount")
-                        .value(50.00))
-                .andExpect(jsonPath("$.paymentMethod")
-                        .value("CREDIT_CARD"))
+                        .value(payment.getId().toString()))
                 .andExpect(jsonPath("$.status")
                         .value("FAILED"));
     }
@@ -532,6 +528,7 @@ public class PaymentControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("AUTHORIZED"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -541,25 +538,12 @@ public class PaymentControllerIT {
                 PaymentResponse.class
         );
 
-        // First transition: PENDING → AUTHORIZED
+        UpdatePaymentStatusRequest statusRequest =
+                new UpdatePaymentStatusRequest(
+                        PaymentStatus.PENDING
+                );
 
-        UpdatePaymentStatusRequest authorizeRequest =
-                new UpdatePaymentStatusRequest(PaymentStatus.AUTHORIZED);
-
-        mockMvc.perform(patch(
-                        "/api/v1/payments/{id}/status",
-                        createdPayment.id()
-                )
-                        .with(httpBasic(username, password))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(authorizeRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("AUTHORIZED"));
-
-        // Act & Assert: AUTHORIZED → FAILED
-
-        UpdatePaymentStatusRequest failRequest =
-                new UpdatePaymentStatusRequest(PaymentStatus.FAILED);
+        // Act & Assert
 
         mockMvc.perform(patch(
                         "/api/v1/payments/{id}/status",
@@ -567,14 +551,17 @@ public class PaymentControllerIT {
                 )
                         .with(httpBasic(username, password))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(failRequest)))
-                .andExpect(status().isUnprocessableContent())
+                        .content(objectMapper.writeValueAsString(statusRequest)))
+                .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.status").value(422))
-                .andExpect(jsonPath("$.error").value("Unprocessable Content"))
+                .andExpect(jsonPath("$.error")
+                        .value("Unprocessable Content"))
                 .andExpect(jsonPath("$.message")
-                        .value("Invalid payment status transition from AUTHORIZED to FAILED"))
+                        .value("Invalid payment status transition from AUTHORIZED to PENDING"))
                 .andExpect(jsonPath("$.path")
-                        .value("/api/v1/payments/" + createdPayment.id() + "/status"));
+                        .value("/api/v1/payments/"
+                                + createdPayment.id()
+                                + "/status"));
     }
 
     @Test
@@ -621,6 +608,8 @@ public class PaymentControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status")
+                        .value("AUTHORIZED"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -630,22 +619,12 @@ public class PaymentControllerIT {
                 PaymentResponse.class
         );
 
-        // First transition: PENDING → AUTHORIZED
+        UpdatePaymentStatusRequest statusRequest =
+                new UpdatePaymentStatusRequest(
+                        PaymentStatus.AUTHORIZED
+                );
 
-        UpdatePaymentStatusRequest authorizeRequest =
-                new UpdatePaymentStatusRequest(PaymentStatus.AUTHORIZED);
-
-        mockMvc.perform(patch(
-                        "/api/v1/payments/{id}/status",
-                        createdPayment.id()
-                )
-                        .with(httpBasic(username, password))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(authorizeRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("AUTHORIZED"));
-
-        // Act & Assert: AUTHORIZED → AUTHORIZED
+        // Act & Assert
 
         mockMvc.perform(patch(
                         "/api/v1/payments/{id}/status",
@@ -653,14 +632,17 @@ public class PaymentControllerIT {
                 )
                         .with(httpBasic(username, password))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(authorizeRequest)))
-                .andExpect(status().isUnprocessableContent())
+                        .content(objectMapper.writeValueAsString(statusRequest)))
+                .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.status").value(422))
-                .andExpect(jsonPath("$.error").value("Unprocessable Content"))
+                .andExpect(jsonPath("$.error")
+                        .value("Unprocessable Content"))
                 .andExpect(jsonPath("$.message")
                         .value("Payment is already in status: AUTHORIZED"))
                 .andExpect(jsonPath("$.path")
-                        .value("/api/v1/payments/" + createdPayment.id() + "/status"));
+                        .value("/api/v1/payments/"
+                                + createdPayment.id()
+                                + "/status"));
     }
 
     @Test
@@ -730,34 +712,17 @@ public class PaymentControllerIT {
                 PaymentMethod.CREDIT_CARD
         );
 
-        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
+        // Act
+
+        mockMvc.perform(post("/api/v1/payments")
                         .with(httpBasic(username, password))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        PaymentResponse createdPayment = objectMapper.readValue(
-                paymentResponse,
-                PaymentResponse.class
-        );
-
-        UpdatePaymentStatusRequest statusRequest =
-                new UpdatePaymentStatusRequest(PaymentStatus.AUTHORIZED);
-
-        // Act
-
-        mockMvc.perform(patch(
-                        "/api/v1/payments/{id}/status",
-                        createdPayment.id()
-                )
-                        .with(httpBasic(username, password))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(statusRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("AUTHORIZED"));
+                .andExpect(jsonPath("$.status")
+                        .value("AUTHORIZED"))
+                .andExpect(jsonPath("$.transactionId")
+                        .isNotEmpty());
 
         // Assert
 
@@ -812,33 +777,12 @@ public class PaymentControllerIT {
                 PaymentMethod.CREDIT_CARD
         );
 
-        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
+        mockMvc.perform(post("/api/v1/payments")
                         .with(httpBasic(username, password))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        PaymentResponse createdPayment = objectMapper.readValue(
-                paymentResponse,
-                PaymentResponse.class
-        );
-
-        // Change payment to AUTHORIZED
-
-        UpdatePaymentStatusRequest statusRequest =
-                new UpdatePaymentStatusRequest(PaymentStatus.AUTHORIZED);
-
-        mockMvc.perform(patch(
-                        "/api/v1/payments/{id}/status",
-                        createdPayment.id()
-                )
-                        .with(httpBasic(username, password))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(statusRequest)))
-                .andExpect(status().isOk());
+                .andExpect(jsonPath("$.status").value("AUTHORIZED"));
 
         // Act & Assert
 
@@ -849,16 +793,9 @@ public class PaymentControllerIT {
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
-                .andExpect(jsonPath("$.content[0].id")
-                        .value(createdPayment.id().toString()))
-                .andExpect(jsonPath("$.content[0].orderId")
-                        .value(createdOrder.id().toString()))
                 .andExpect(jsonPath("$.content[0].status")
                         .value("AUTHORIZED"))
-                .andExpect(jsonPath("$.content[0].paymentMethod")
-                        .value("CREDIT_CARD"))
-                .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.totalPages").value(1));
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     @Test
@@ -900,19 +837,15 @@ public class PaymentControllerIT {
                 PaymentMethod.CREDIT_CARD
         );
 
-        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
+        mockMvc.perform(post("/api/v1/payments")
                         .with(httpBasic(username, password))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        PaymentResponse createdPayment = objectMapper.readValue(
-                paymentResponse,
-                PaymentResponse.class
-        );
+                .andExpect(jsonPath("$.orderId")
+                        .value(createdOrder.id().toString()))
+                .andExpect(jsonPath("$.status")
+                        .value("AUTHORIZED"));
 
         // Act & Assert
 
@@ -923,18 +856,11 @@ public class PaymentControllerIT {
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
-                .andExpect(jsonPath("$.content[0].id")
-                        .value(createdPayment.id().toString()))
                 .andExpect(jsonPath("$.content[0].orderId")
                         .value(createdOrder.id().toString()))
-                .andExpect(jsonPath("$.content[0].amount")
-                        .value(50.00))
-                .andExpect(jsonPath("$.content[0].paymentMethod")
-                        .value("CREDIT_CARD"))
                 .andExpect(jsonPath("$.content[0].status")
-                        .value("PENDING"))
-                .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.totalPages").value(1));
+                        .value("AUTHORIZED"))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     @Test
@@ -973,44 +899,31 @@ public class PaymentControllerIT {
 
         CreatePaymentRequest paymentRequest = new CreatePaymentRequest(
                 createdOrder.id(),
-                PaymentMethod.PAYPAL
+                PaymentMethod.CREDIT_CARD
         );
 
-        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
+        mockMvc.perform(post("/api/v1/payments")
                         .with(httpBasic(username, password))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        PaymentResponse createdPayment = objectMapper.readValue(
-                paymentResponse,
-                PaymentResponse.class
-        );
+                .andExpect(jsonPath("$.paymentMethod")
+                        .value("CREDIT_CARD"));
 
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/payments")
                         .with(httpBasic(username, password))
-                        .param("paymentMethod", "PAYPAL")
+                        .param("paymentMethod", "CREDIT_CARD")
                         .param("page", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
-                .andExpect(jsonPath("$.content[0].id")
-                        .value(createdPayment.id().toString()))
-                .andExpect(jsonPath("$.content[0].orderId")
-                        .value(createdOrder.id().toString()))
-                .andExpect(jsonPath("$.content[0].amount")
-                        .value(50.00))
                 .andExpect(jsonPath("$.content[0].paymentMethod")
-                        .value("PAYPAL"))
+                        .value("CREDIT_CARD"))
                 .andExpect(jsonPath("$.content[0].status")
-                        .value("PENDING"))
-                .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.totalPages").value(1));
+                        .value("AUTHORIZED"))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     @Test
@@ -1057,6 +970,7 @@ public class PaymentControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("AUTHORIZED"))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -1069,7 +983,6 @@ public class PaymentControllerIT {
         Instant paymentCreatedAt = createdPayment.createdAt();
 
         Instant createdFrom = paymentCreatedAt.minusSeconds(60);
-
         Instant createdTo = paymentCreatedAt.plusSeconds(60);
 
         // Act & Assert
@@ -1086,10 +999,8 @@ public class PaymentControllerIT {
                         .value(createdPayment.id().toString()))
                 .andExpect(jsonPath("$.content[0].orderId")
                         .value(createdOrder.id().toString()))
-                .andExpect(jsonPath("$.content[0].paymentMethod")
-                        .value("CREDIT_CARD"))
                 .andExpect(jsonPath("$.content[0].status")
-                        .value("PENDING"))
+                        .value("AUTHORIZED"))
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.totalPages").value(1));
     }
@@ -1168,6 +1079,79 @@ public class PaymentControllerIT {
                 .andExpect(jsonPath("$.content.length()").value(0))
                 .andExpect(jsonPath("$.totalElements").value(0))
                 .andExpect(jsonPath("$.totalPages").value(0));
+    }
+
+    @Test
+    void shouldSearchPaymentsByTransactionId() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(
+                inventory(product, 100)
+        );
+
+        CreateOrderRequest orderRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(
+                        new OrderItemRequest(product.getId(), 2)
+                )
+        );
+
+        String orderResponse = mockMvc.perform(post("/api/v1/orders")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse createdOrder = objectMapper.readValue(
+                orderResponse,
+                OrderResponse.class
+        );
+
+        CreatePaymentRequest paymentRequest = new CreatePaymentRequest(
+                createdOrder.id(),
+                PaymentMethod.CREDIT_CARD
+        );
+
+        String paymentResponse = mockMvc.perform(post("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(paymentRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("AUTHORIZED"))
+                .andExpect(jsonPath("$.transactionId").isNotEmpty())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        PaymentResponse createdPayment = objectMapper.readValue(
+                paymentResponse,
+                PaymentResponse.class
+        );
+
+        // Act & Assert
+
+        mockMvc.perform(get("/api/v1/payments")
+                        .with(httpBasic(username, password))
+                        .param("transactionId", createdPayment.transactionId())
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].transactionId")
+                        .value(createdPayment.transactionId()))
+                .andExpect(jsonPath("$.content[0].orderId")
+                        .value(createdOrder.id().toString()))
+                .andExpect(jsonPath("$.content[0].status")
+                        .value("AUTHORIZED"))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
 }

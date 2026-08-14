@@ -1,13 +1,17 @@
 package dev.ulisses.highperformanceapi.application.service;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreatePaymentRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.PaymentGatewayRequest;
 import dev.ulisses.highperformanceapi.application.dto.request.PaymentSearchRequest;
+import dev.ulisses.highperformanceapi.application.dto.response.PaymentGatewayResponse;
 import dev.ulisses.highperformanceapi.application.dto.response.PaymentResponse;
 import dev.ulisses.highperformanceapi.application.event.PaymentAuthorizedEvent;
+import dev.ulisses.highperformanceapi.application.event.PaymentEventPublisher;
 import dev.ulisses.highperformanceapi.application.event.PaymentFailedEvent;
 import dev.ulisses.highperformanceapi.application.exception.BusinessException;
 import dev.ulisses.highperformanceapi.application.exception.DuplicateResourceException;
 import dev.ulisses.highperformanceapi.application.exception.ResourceNotFoundException;
+import dev.ulisses.highperformanceapi.application.gateway.PaymentGateway;
 import dev.ulisses.highperformanceapi.application.mapper.PaymentMapper;
 import dev.ulisses.highperformanceapi.application.service.impl.PaymentServiceImpl;
 import dev.ulisses.highperformanceapi.domain.entity.Order;
@@ -19,6 +23,7 @@ import dev.ulisses.highperformanceapi.domain.repository.OrderRepository;
 import dev.ulisses.highperformanceapi.domain.repository.PaymentRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -56,6 +61,12 @@ public class PaymentServiceImplTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    private PaymentEventPublisher paymentEventPublisher;
+
+    @Mock
+    PaymentGateway paymentGateway;
+
     @Test
     void shouldCreatePayment() {
 
@@ -73,18 +84,27 @@ public class PaymentServiceImplTest {
         order.setStatus(OrderStatus.PENDING);
 
         Payment payment = new Payment();
+        payment.setId(paymentId);
         payment.setOrder(order);
         payment.setAmount(new BigDecimal("150.00"));
         payment.setMethod(PaymentMethod.CREDIT_CARD);
         payment.setStatus(PaymentStatus.PENDING);
+
+        PaymentGatewayResponse gatewayResponse =
+                new PaymentGatewayResponse(
+                        true,
+                        "FAKE-TXN-123",
+                        "FAKE-AUTH-123",
+                        null
+                );
 
         PaymentResponse response = new PaymentResponse(
                 paymentId,
                 orderId,
                 new BigDecimal("150.00"),
                 PaymentMethod.CREDIT_CARD,
-                PaymentStatus.PENDING,
-                null,
+                PaymentStatus.AUTHORIZED,
+                "FAKE-TXN-123",
                 null,
                 null,
                 null
@@ -102,22 +122,61 @@ public class PaymentServiceImplTest {
         when(paymentRepository.save(payment))
                 .thenReturn(payment);
 
+        when(paymentGateway.process(any(PaymentGatewayRequest.class)))
+                .thenReturn(gatewayResponse);
+
         when(paymentMapper.toResponse(payment))
                 .thenReturn(response);
 
-        PaymentResponse result = paymentServiceImpl.create(request);
+        PaymentResponse result =
+                paymentServiceImpl.create(request);
 
         assertNotNull(result);
+
         assertEquals(paymentId, result.id());
         assertEquals(orderId, result.orderId());
-        assertEquals(new BigDecimal("150.00"), result.amount());
-        assertEquals(PaymentMethod.CREDIT_CARD, result.paymentMethod());
-        assertEquals(PaymentStatus.PENDING, result.status());
+        assertEquals(
+                new BigDecimal("150.00"),
+                result.amount()
+        );
+        assertEquals(
+                PaymentMethod.CREDIT_CARD,
+                result.paymentMethod()
+        );
+        assertEquals(
+                PaymentStatus.AUTHORIZED,
+                result.status()
+        );
+        assertEquals(
+                "FAKE-TXN-123",
+                result.transactionId()
+        );
 
         verify(orderRepository).findById(orderId);
         verify(paymentRepository).existsByOrderId(orderId);
         verify(paymentMapper).toEntity(request);
-        verify(paymentRepository).save(payment);
+
+        ArgumentCaptor<PaymentGatewayRequest> captor =
+                ArgumentCaptor.forClass(PaymentGatewayRequest.class);
+
+        verify(paymentGateway).process(captor.capture());
+
+        PaymentGatewayRequest actualRequest = captor.getValue();
+
+        assertEquals(paymentId, actualRequest.paymentId());
+        assertEquals(orderId, actualRequest.orderId());
+        assertEquals(
+                new BigDecimal("150.00"),
+                actualRequest.amount()
+        );
+        assertEquals(
+                PaymentMethod.CREDIT_CARD,
+                actualRequest.paymentMethod()
+        );
+
+        verify(paymentRepository, times(2))
+                .save(payment);
+
         verify(paymentMapper).toResponse(payment);
     }
 
@@ -252,13 +311,24 @@ public class PaymentServiceImplTest {
         when(paymentRepository.save(payment))
                 .thenReturn(payment);
 
+        PaymentGatewayResponse gatewayResponse =
+                new PaymentGatewayResponse(
+                        true,
+                        "FAKE-TXN-123",
+                        "FAKE-AUTH-123",
+                        null
+                );
+
+        when(paymentGateway.process(any(PaymentGatewayRequest.class)))
+                .thenReturn(gatewayResponse);
+
         PaymentResponse response = new PaymentResponse(
                 UUID.randomUUID(),
                 orderId,
                 orderTotal,
                 PaymentMethod.CREDIT_CARD,
-                PaymentStatus.PENDING,
-                null,
+                PaymentStatus.AUTHORIZED,
+                "FAKE-TXN-123",
                 null,
                 null,
                 null
@@ -271,7 +341,12 @@ public class PaymentServiceImplTest {
 
         assertEquals(orderTotal, payment.getAmount());
 
-        verify(paymentRepository).save(payment);
+        verify(paymentGateway).process(
+                any(PaymentGatewayRequest.class)
+        );
+
+        verify(paymentRepository, times(2))
+                .save(payment);
     }
 
     @Test
@@ -986,5 +1061,250 @@ public class PaymentServiceImplTest {
         verify(paymentMapper).toResponse(payment);
     }
 
+    @Test
+    void shouldProcessPaymentThroughGateway() {
 
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+
+        CreatePaymentRequest request = new CreatePaymentRequest(
+                orderId,
+                PaymentMethod.CREDIT_CARD
+        );
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.PENDING);
+
+        PaymentGatewayRequest gatewayRequest =
+                new PaymentGatewayRequest(
+                        paymentId,
+                        orderId,
+                        new BigDecimal("150.00"),
+                        PaymentMethod.CREDIT_CARD
+                );
+
+        PaymentGatewayResponse gatewayResponse =
+                new PaymentGatewayResponse(
+                        true,
+                        "FAKE-TXN-123",
+                        "FAKE-AUTH-123",
+                        null
+                );
+
+        PaymentResponse response = new PaymentResponse(
+                paymentId,
+                orderId,
+                new BigDecimal("150.00"),
+                PaymentMethod.CREDIT_CARD,
+                PaymentStatus.AUTHORIZED,
+                "FAKE-TXN-123",
+                null,
+                null,
+                null
+        );
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.of(order));
+
+        when(paymentRepository.existsByOrderId(orderId))
+                .thenReturn(false);
+
+        when(paymentMapper.toEntity(request))
+                .thenReturn(payment);
+
+        when(paymentRepository.save(payment))
+                .thenReturn(payment);
+
+        when(paymentGateway.process(any(PaymentGatewayRequest.class)))
+                .thenReturn(gatewayResponse);
+
+        when(paymentMapper.toResponse(payment))
+                .thenReturn(response);
+
+        PaymentResponse result =
+                paymentServiceImpl.create(request);
+
+        assertNotNull(result);
+
+        assertEquals(PaymentStatus.AUTHORIZED, result.status());
+
+        assertEquals(
+                "FAKE-TXN-123",
+                result.transactionId()
+        );
+
+        verify(paymentGateway).process(
+                any(PaymentGatewayRequest.class)
+        );
+
+        verify(paymentRepository, times(2))
+                .save(payment);
+
+        verify(paymentMapper).toResponse(payment);
+    }
+
+    @Test
+    void shouldMarkPaymentAsFailedWhenGatewayRejects() {
+
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+
+        CreatePaymentRequest request = new CreatePaymentRequest(
+                orderId,
+                PaymentMethod.CREDIT_CARD
+        );
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.PENDING);
+
+        PaymentGatewayResponse gatewayResponse =
+                new PaymentGatewayResponse(
+                        false,
+                        null,
+                        null,
+                        "Payment declined by fake gateway"
+                );
+
+        PaymentResponse response = new PaymentResponse(
+                paymentId,
+                orderId,
+                new BigDecimal("150.00"),
+                PaymentMethod.CREDIT_CARD,
+                PaymentStatus.FAILED,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.of(order));
+
+        when(paymentRepository.existsByOrderId(orderId))
+                .thenReturn(false);
+
+        when(paymentMapper.toEntity(request))
+                .thenReturn(payment);
+
+        when(paymentRepository.save(payment))
+                .thenReturn(payment);
+
+        when(paymentGateway.process(any(PaymentGatewayRequest.class)))
+                .thenReturn(gatewayResponse);
+
+        when(paymentMapper.toResponse(payment))
+                .thenReturn(response);
+
+        PaymentResponse result =
+                paymentServiceImpl.create(request);
+
+        assertNotNull(result);
+
+        assertEquals(
+                PaymentStatus.FAILED,
+                result.status()
+        );
+
+        assertNull(result.transactionId());
+
+        assertEquals(
+                PaymentStatus.FAILED,
+                payment.getStatus()
+        );
+
+        verify(paymentGateway).process(
+                any(PaymentGatewayRequest.class)
+        );
+
+        verify(paymentRepository, times(2))
+                .save(payment);
+
+        verify(paymentMapper).toResponse(payment);
+    }
+
+    @Test
+    void shouldPublishPaymentAuthorizedEventWhenGatewayAuthorizes() {
+
+        UUID orderId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+
+        CreatePaymentRequest request = new CreatePaymentRequest(
+                orderId,
+                PaymentMethod.CREDIT_CARD
+        );
+
+        Order order = new Order();
+        order.setId(orderId);
+        order.setTotalAmount(new BigDecimal("150.00"));
+        order.setStatus(OrderStatus.PENDING);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("150.00"));
+        payment.setMethod(PaymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.PENDING);
+
+        PaymentGatewayResponse gatewayResponse =
+                new PaymentGatewayResponse(
+                        true,
+                        "FAKE-TXN-123",
+                        "FAKE-AUTH-123",
+                        null
+                );
+
+        PaymentResponse response = new PaymentResponse(
+                paymentId,
+                orderId,
+                new BigDecimal("150.00"),
+                PaymentMethod.CREDIT_CARD,
+                PaymentStatus.AUTHORIZED,
+                "FAKE-TXN-123",
+                null,
+                null,
+                null
+        );
+
+        when(orderRepository.findById(orderId))
+                .thenReturn(Optional.of(order));
+
+        when(paymentRepository.existsByOrderId(orderId))
+                .thenReturn(false);
+
+        when(paymentMapper.toEntity(request))
+                .thenReturn(payment);
+
+        when(paymentRepository.save(payment))
+                .thenReturn(payment);
+
+        when(paymentGateway.process(any(PaymentGatewayRequest.class)))
+                .thenReturn(gatewayResponse);
+
+        when(paymentMapper.toResponse(payment))
+                .thenReturn(response);
+
+        paymentServiceImpl.create(request);
+
+        verify(paymentEventPublisher).publish(
+                any(PaymentAuthorizedEvent.class)
+        );
+    }
 }
