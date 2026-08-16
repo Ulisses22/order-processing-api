@@ -1,6 +1,7 @@
 package dev.ulisses.highperformanceapi.web;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreateShipmentRequest;
+import dev.ulisses.highperformanceapi.application.dto.request.UpdateShipmentStatusRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.ShipmentResponse;
 import dev.ulisses.highperformanceapi.application.service.ShipmentService;
 import jakarta.validation.Valid;
@@ -39,6 +40,16 @@ public class ShipmentController {
 
         return ResponseEntity.ok(
                 shipmentService.findById(id)
+        );
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ShipmentResponse> updateStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateShipmentStatusRequest request
+    ) {
+        return ResponseEntity.ok(
+                shipmentService.updateStatus(id, request.status())
         );
     }
 }
