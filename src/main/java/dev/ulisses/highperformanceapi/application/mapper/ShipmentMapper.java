@@ -12,6 +12,7 @@ public interface ShipmentMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "order", ignore = true)
     @Mapping(target = "trackingNumber", ignore = true)
+    @Mapping(target = "shippingAddress", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "shippedAt", ignore = true)
     @Mapping(target = "deliveredAt", ignore = true)

@@ -38,7 +38,6 @@ import java.util.UUID;
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
 
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
@@ -59,7 +58,6 @@ public class OrderServiceImpl implements OrderService {
             ApplicationEventPublisher eventPublisher
     ) {
         this.orderRepository = orderRepository;
-        this.orderItemRepository = orderItemRepository;
         this.customerRepository = customerRepository;
         this.productRepository = productRepository;
         this.inventoryService = inventoryService;
@@ -78,7 +76,7 @@ public class OrderServiceImpl implements OrderService {
 
         reserveInventory(products, request.items());
 
-        Order order = buildOrder(customer, totalAmount);
+        Order order = buildOrder(customer, totalAmount, request.shippingAddress());
 
         List<OrderItem> orderItems = buildOrderItems(order, products, request.items());
 
@@ -121,9 +119,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderResponse updateStatus(UUID id, OrderStatus newStatus) {
 
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Order not found with id: " + id));
+        Order order = getOrder(id);
 
         validateStatusTransition(order, newStatus);
 
@@ -215,13 +211,15 @@ public class OrderServiceImpl implements OrderService {
 
     private Order buildOrder(
             Customer customer,
-            BigDecimal totalAmount
+            BigDecimal totalAmount,
+            String shippingAddress
     ) {
 
         Order order = new Order();
 
         order.setCustomer(customer);
         order.setTotalAmount(totalAmount);
+        order.setShippingAddress(shippingAddress);
         order.setStatus(OrderStatus.PENDING);
         order.setOrderNumber(generateOrderNumber());
 

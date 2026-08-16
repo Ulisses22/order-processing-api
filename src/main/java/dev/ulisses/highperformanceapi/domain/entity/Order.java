@@ -30,6 +30,9 @@ public class Order extends BaseEntity {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal totalAmount;
 
+    @Column(nullable = false, length = 500)
+    private String shippingAddress;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private OrderStatus status;
@@ -59,6 +62,14 @@ public class Order extends BaseEntity {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public void setShippingAddress(String shippingAddress) {
+        this.shippingAddress = shippingAddress;
+    }
+
+    public String getShippingAddress() {
+        return shippingAddress;
     }
 
     public OrderStatus getStatus() {

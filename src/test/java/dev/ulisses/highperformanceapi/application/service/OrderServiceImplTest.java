@@ -88,7 +88,8 @@ class OrderServiceImplTest {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customerId,
-                List.of(new OrderItemRequest(productId, 2))
+                List.of(new OrderItemRequest(productId, 2)),
+                "221B Baker Street, London"
         );
 
         Customer customer = new Customer();
@@ -153,7 +154,8 @@ class OrderServiceImplTest {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customerId,
-                List.of()
+                List.of(),
+                "221B Baker Street, London"
         );
 
         when(customerRepository.findById(customerId))
@@ -186,7 +188,8 @@ class OrderServiceImplTest {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customerId,
-                List.of()
+                List.of(),
+                "221B Baker Street, London"
         );
 
         Customer customer = new Customer();
@@ -224,7 +227,8 @@ class OrderServiceImplTest {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customerId,
-                List.of(new OrderItemRequest(productId, 2))
+                List.of(new OrderItemRequest(productId, 2)),
+                "221B Baker Street, London"
         );
 
         Customer customer = new Customer();
@@ -265,7 +269,8 @@ class OrderServiceImplTest {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customerId,
-                List.of(new OrderItemRequest(productId, 2))
+                List.of(new OrderItemRequest(productId, 2)),
+                "221B Baker Street, London"
         );
 
         Customer customer = new Customer();
@@ -310,7 +315,8 @@ class OrderServiceImplTest {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customerId,
-                List.of(new OrderItemRequest(productId, 2))
+                List.of(new OrderItemRequest(productId, 2)),
+                "221B Baker Street, London"
         );
 
         Customer customer = new Customer();

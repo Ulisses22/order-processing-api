@@ -33,7 +33,7 @@ public class Shipment extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String carrier;
 
-    @Column(name = "tracking_number", nullable = false, length = 100)
+    @Column(name = "tracking_number", nullable = false)
     private String trackingNumber;
 
     @Enumerated(EnumType.STRING)
@@ -85,7 +85,7 @@ public class Shipment extends BaseEntity {
         return shippingAddress;
     }
 
-    public void setShippingAddress() {
+    public void setShippingAddress(String shippingAddress) {
         this.shippingAddress = shippingAddress;
     }
 

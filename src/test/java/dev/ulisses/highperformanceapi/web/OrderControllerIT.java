@@ -122,7 +122,8 @@ public class OrderControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         // Act & Assert
@@ -134,6 +135,7 @@ public class OrderControllerIT {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.customerId").value(customer.getId().toString()))
                 .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.shippingAddress").value("221B Baker Street, London"))
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.totalAmount").value(50.00));
     }
@@ -149,7 +151,8 @@ public class OrderControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(UUID.randomUUID(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         // Act & Assert
@@ -182,7 +185,8 @@ public class OrderControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         // Act & Assert
@@ -205,7 +209,8 @@ public class OrderControllerIT {
         String request = """
         {
           "customerId": null,
-          "items": []
+          "items": [],
+          "shippingAddress": ""
         }
         """;
 
@@ -221,6 +226,7 @@ public class OrderControllerIT {
                 .andExpect(jsonPath("$.message").value("Request validation failed"))
                 .andExpect(jsonPath("$.path").value("/api/v1/orders"))
                 .andExpect(jsonPath("$.errors.customerId").value("Customer id is required."))
+                .andExpect(jsonPath("$.errors.shippingAddress").value("Shipping address is required."))
                 .andExpect(jsonPath("$.errors.items").value("Order must contain at least one item."));
     }
 
@@ -235,7 +241,8 @@ public class OrderControllerIT {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 UUID.randomUUID(),
-                List.of(new OrderItemRequest(product.getId(), 2))
+                List.of(new OrderItemRequest(product.getId(), 2)),
+                "221B Baker Street, London"
         );
 
         // Act & Assert
@@ -268,7 +275,8 @@ public class OrderControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
@@ -288,6 +296,7 @@ public class OrderControllerIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(createdOrder.id().toString()))
                 .andExpect(jsonPath("$.customerId").value(customer.getId().toString()))
+                .andExpect(jsonPath("$.shippingAddress").value("221B Baker Street, London"))
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.totalAmount").value(50.00));
@@ -328,7 +337,8 @@ public class OrderControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 1)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         mockMvc.perform(post("/api/v1/orders")
@@ -346,6 +356,7 @@ public class OrderControllerIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].customerId").value(customer.getId().toString()))
+                .andExpect(jsonPath("$.content[0].shippingAddress").value("221B Baker Street, London"))
                 .andExpect(jsonPath("$.content[0].status").value("PENDING"))
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.totalPages").value(1));
@@ -382,7 +393,8 @@ public class OrderControllerIT {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customer.getId(),
-                List.of(new OrderItemRequest(product.getId(), 2))
+                List.of(new OrderItemRequest(product.getId(), 2)),
+                "221B Baker Street, London"
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
@@ -403,6 +415,7 @@ public class OrderControllerIT {
                         .with(httpBasic(username, password)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(createdOrder.id().toString()))
+                .andExpect(jsonPath("$.shippingAddress").value("221B Baker Street, London"))
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
     }
 
@@ -432,7 +445,8 @@ public class OrderControllerIT {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customer.getId(),
-                List.of(new OrderItemRequest(product.getId(), 1))
+                List.of(new OrderItemRequest(product.getId(), 1)),
+                "221B Baker Street, London"
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
@@ -475,7 +489,8 @@ public class OrderControllerIT {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customer.getId(),
-                List.of(new OrderItemRequest(product.getId(), 1))
+                List.of(new OrderItemRequest(product.getId(), 1)),
+                "221B Baker Street, London"
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
@@ -520,7 +535,8 @@ public class OrderControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 1)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
@@ -543,6 +559,7 @@ public class OrderControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shippingAddress").value("221B Baker Street, London"))
                 .andExpect(jsonPath("$.status").value("PROCESSING"));
     }
 
@@ -563,7 +580,8 @@ public class OrderControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 1)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
@@ -591,6 +609,7 @@ public class OrderControllerIT {
                         .content(objectMapper.writeValueAsString(
                                 new UpdateOrderStatusRequest(OrderStatus.SHIPPED))))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shippingAddress").value("221B Baker Street, London"))
                 .andExpect(jsonPath("$.status").value("SHIPPED"));
     }
 
@@ -611,7 +630,8 @@ public class OrderControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 1)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
@@ -646,6 +666,7 @@ public class OrderControllerIT {
                         .content(objectMapper.writeValueAsString(
                                 new UpdateOrderStatusRequest(OrderStatus.DELIVERED))))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shippingAddress").value("221B Baker Street, London"))
                 .andExpect(jsonPath("$.status").value("DELIVERED"));
     }
 
@@ -680,7 +701,8 @@ public class OrderControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 1)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
@@ -717,7 +739,8 @@ public class OrderControllerIT {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customer.getId(),
-                List.of(new OrderItemRequest(product.getId(), 1))
+                List.of(new OrderItemRequest(product.getId(), 1)),
+                "221B Baker Street, London"
         );
 
         mockMvc.perform(post("/api/v1/orders")
@@ -733,6 +756,7 @@ public class OrderControllerIT {
                         .param("status", "PENDING"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].shippingAddress").value("221B Baker Street, London"))
                 .andExpect(jsonPath("$.content[0].status").value("PENDING"));
     }
 
@@ -749,7 +773,8 @@ public class OrderControllerIT {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customer.getId(),
-                List.of(new OrderItemRequest(product.getId(), 1))
+                List.of(new OrderItemRequest(product.getId(), 1)),
+                "221B Baker Street, London"
         );
 
         mockMvc.perform(post("/api/v1/orders")
@@ -765,8 +790,8 @@ public class OrderControllerIT {
                         .param("customerId", customer.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
-                .andExpect(jsonPath("$.content[0].customerId")
-                        .value(customer.getId().toString()));
+                .andExpect(jsonPath("$.content[0].shippingAddress").value("221B Baker Street, London"))
+                .andExpect(jsonPath("$.content[0].customerId").value(customer.getId().toString()));
     }
 
     @Test
@@ -782,7 +807,8 @@ public class OrderControllerIT {
 
         CreateOrderRequest request = new CreateOrderRequest(
                 customer.getId(),
-                List.of(new OrderItemRequest(product.getId(), 1))
+                List.of(new OrderItemRequest(product.getId(), 1)),
+                "221B Baker Street, London"
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
@@ -797,7 +823,7 @@ public class OrderControllerIT {
         String orderNumber = objectMapper
                 .readTree(response)
                 .get("orderNumber")
-                .asText();
+                .asString();
 
         // Act & Assert
 
@@ -806,6 +832,7 @@ public class OrderControllerIT {
                         .param("orderNumber", orderNumber))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].shippingAddress").value("221B Baker Street, London"))
                 .andExpect(jsonPath("$.content[0].orderNumber").value(orderNumber));
     }
 
