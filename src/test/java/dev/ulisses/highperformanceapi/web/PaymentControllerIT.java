@@ -121,7 +121,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -203,7 +204,8 @@ public class PaymentControllerIT {
 
         CreateOrderRequest orderRequest = new CreateOrderRequest(
                 customer.getId(),
-                List.of(new OrderItemRequest(product.getId(), 2))
+                List.of(new OrderItemRequest(product.getId(), 2)),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -265,7 +267,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -365,7 +368,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -434,7 +438,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -501,7 +506,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -581,7 +587,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -690,7 +697,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -755,7 +763,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -815,7 +824,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -880,7 +890,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -943,7 +954,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -1022,7 +1034,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
@@ -1098,7 +1111,8 @@ public class PaymentControllerIT {
                 customer.getId(),
                 List.of(
                         new OrderItemRequest(product.getId(), 2)
-                )
+                ),
+                "221B Baker Street, London"
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")

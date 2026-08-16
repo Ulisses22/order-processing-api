@@ -19,6 +19,8 @@ public record OrderResponse(
 
         BigDecimal totalAmount,
 
+        String shippingAddress,
+
         List<OrderItemResponse> items,
 
         Instant createdAt,
