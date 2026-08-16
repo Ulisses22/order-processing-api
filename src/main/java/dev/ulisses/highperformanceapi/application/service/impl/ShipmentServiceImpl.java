@@ -109,7 +109,94 @@ public class ShipmentServiceImpl implements ShipmentService {
         }
     }
 
+    // TODO: make it utils class
     private String generateTrackingNumber() {
         return "TRK-" + UUID.randomUUID();
+    }
+
+    @Override
+    public ShipmentResponse updateStatus(UUID id, ShipmentStatus newStatus) {
+
+        Shipment shipment = getShipment(id);
+
+        validateStatusTransition(shipment, newStatus);
+
+        shipment.setStatus(newStatus);
+
+        if (newStatus == ShipmentStatus.SHIPPED) {
+            shipment.setShippedAt(java.time.Instant.now());
+        }
+
+        if (newStatus == ShipmentStatus.DELIVERED) {
+            shipment.setDeliveredAt(java.time.Instant.now());
+        }
+
+        Shipment updatedShipment = shipmentRepository.save(shipment);
+
+        return shipmentMapper.toResponse(updatedShipment);
+    }
+
+    private Shipment getShipment(UUID shipmentId) {
+
+        return shipmentRepository.findById(shipmentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Shipment not found with id: " + shipmentId
+                ));
+    }
+
+    private void validateStatusTransition(
+            Shipment shipment,
+            ShipmentStatus newStatus
+    ) {
+
+        ShipmentStatus currentStatus = shipment.getStatus();
+
+        if (currentStatus == newStatus) {
+            throw new BusinessException(
+                    "Shipment is already in status: " + currentStatus
+            );
+        }
+
+        if (currentStatus == ShipmentStatus.DELIVERED) {
+            throw new BusinessException(
+                    "Delivered shipments cannot be updated."
+            );
+        }
+
+        if (currentStatus == ShipmentStatus.CANCELLED) {
+            throw new BusinessException(
+                    "Cancelled shipments cannot be updated."
+            );
+        }
+
+        boolean validTransition = switch (currentStatus) {
+
+            case PENDING ->
+                    newStatus == ShipmentStatus.PREPARING
+                            || newStatus == ShipmentStatus.CANCELLED;
+
+            case PREPARING ->
+                    newStatus == ShipmentStatus.SHIPPED
+                            || newStatus == ShipmentStatus.CANCELLED;
+
+            case SHIPPED ->
+                    newStatus == ShipmentStatus.IN_TRANSIT
+                            || newStatus == ShipmentStatus.RETURNED;
+
+            case IN_TRANSIT ->
+                    newStatus == ShipmentStatus.DELIVERED
+                            || newStatus == ShipmentStatus.RETURNED;
+
+            default -> false;
+        };
+
+        if (!validTransition) {
+            throw new BusinessException(
+                    "Invalid status transition from "
+                            + currentStatus
+                            + " to "
+                            + newStatus
+            );
+        }
     }
 }

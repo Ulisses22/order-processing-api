@@ -382,4 +382,632 @@ public class ShipmentServiceImplTest {
 
         verifyNoInteractions(shipmentMapper);
     }
+
+    // status-transition unit tests
+    @Test
+    void shouldUpdateShipmentStatusToPreparing() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.PENDING);
+
+        ShipmentResponse expectedResponse = new ShipmentResponse(
+                shipmentId,
+                UUID.randomUUID(),
+                "DHL",
+                "TRK-123",
+                ShipmentStatus.PREPARING,
+                Instant.now(),
+                Instant.now()
+        );
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        when(shipmentRepository.save(shipment))
+                .thenReturn(shipment);
+
+        when(shipmentMapper.toResponse(shipment))
+                .thenReturn(expectedResponse);
+
+        // Act
+
+        ShipmentResponse response =
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.PREPARING
+                );
+
+        // Assert
+
+        assertThat(response)
+                .isEqualTo(expectedResponse);
+
+        assertThat(shipment.getStatus())
+                .isEqualTo(ShipmentStatus.PREPARING);
+
+        verify(shipmentRepository)
+                .findById(shipmentId);
+
+        verify(shipmentRepository)
+                .save(shipment);
+
+        verify(shipmentMapper)
+                .toResponse(shipment);
+    }
+
+    @Test
+    void shouldUpdateShipmentStatusToShipped() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.PREPARING);
+
+        ShipmentResponse expectedResponse = new ShipmentResponse(
+                shipmentId,
+                UUID.randomUUID(),
+                "DHL",
+                "TRK-123",
+                ShipmentStatus.SHIPPED,
+                Instant.now(),
+                Instant.now()
+        );
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        when(shipmentRepository.save(shipment))
+                .thenReturn(shipment);
+
+        when(shipmentMapper.toResponse(shipment))
+                .thenReturn(expectedResponse);
+
+        // Act
+
+        ShipmentResponse response =
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.SHIPPED
+                );
+
+        // Assert
+
+        assertThat(response)
+                .isEqualTo(expectedResponse);
+
+        assertThat(shipment.getStatus())
+                .isEqualTo(ShipmentStatus.SHIPPED);
+
+        assertThat(shipment.getShippedAt())
+                .isNotNull();
+
+        assertThat(shipment.getDeliveredAt())
+                .isNull();
+
+        verify(shipmentRepository)
+                .findById(shipmentId);
+
+        verify(shipmentRepository)
+                .save(shipment);
+
+        verify(shipmentMapper)
+                .toResponse(shipment);
+    }
+
+    @Test
+    void shouldUpdateShipmentStatusToInTransit() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.SHIPPED);
+        shipment.setShippedAt(Instant.now());
+
+        ShipmentResponse expectedResponse = new ShipmentResponse(
+                shipmentId,
+                UUID.randomUUID(),
+                "DHL",
+                "TRK-123",
+                ShipmentStatus.IN_TRANSIT,
+                Instant.now(),
+                Instant.now()
+        );
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        when(shipmentRepository.save(shipment))
+                .thenReturn(shipment);
+
+        when(shipmentMapper.toResponse(shipment))
+                .thenReturn(expectedResponse);
+
+        // Act
+
+        ShipmentResponse response =
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.IN_TRANSIT
+                );
+
+        // Assert
+
+        assertThat(response)
+                .isEqualTo(expectedResponse);
+
+        assertThat(shipment.getStatus())
+                .isEqualTo(ShipmentStatus.IN_TRANSIT);
+
+        assertThat(shipment.getShippedAt())
+                .isNotNull();
+
+        assertThat(shipment.getDeliveredAt())
+                .isNull();
+
+        verify(shipmentRepository)
+                .findById(shipmentId);
+
+        verify(shipmentRepository)
+                .save(shipment);
+
+        verify(shipmentMapper)
+                .toResponse(shipment);
+    }
+
+    @Test
+    void shouldUpdateShipmentStatusToDelivered() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Instant shippedAt = Instant.now().minusSeconds(3600);
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.IN_TRANSIT);
+        shipment.setShippedAt(shippedAt);
+
+        ShipmentResponse expectedResponse = new ShipmentResponse(
+                shipmentId,
+                UUID.randomUUID(),
+                "DHL",
+                "TRK-123",
+                ShipmentStatus.DELIVERED,
+                Instant.now(),
+                Instant.now()
+        );
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        when(shipmentRepository.save(shipment))
+                .thenReturn(shipment);
+
+        when(shipmentMapper.toResponse(shipment))
+                .thenReturn(expectedResponse);
+
+        // Act
+
+        ShipmentResponse response =
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.DELIVERED
+                );
+
+        // Assert
+
+        assertThat(response)
+                .isEqualTo(expectedResponse);
+
+        assertThat(shipment.getStatus())
+                .isEqualTo(ShipmentStatus.DELIVERED);
+
+        assertThat(shipment.getShippedAt())
+                .isEqualTo(shippedAt);
+
+        assertThat(shipment.getDeliveredAt())
+                .isNotNull();
+
+        assertThat(shipment.getDeliveredAt())
+                .isAfterOrEqualTo(shippedAt);
+
+        verify(shipmentRepository)
+                .findById(shipmentId);
+
+        verify(shipmentRepository)
+                .save(shipment);
+
+        verify(shipmentMapper)
+                .toResponse(shipment);
+    }
+
+    @Test
+    void shouldUpdateShipmentStatusToReturned() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Instant shippedAt = Instant.now().minusSeconds(3600);
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.SHIPPED);
+        shipment.setShippedAt(shippedAt);
+
+        ShipmentResponse expectedResponse = new ShipmentResponse(
+                shipmentId,
+                UUID.randomUUID(),
+                "DHL",
+                "TRK-123",
+                ShipmentStatus.RETURNED,
+                Instant.now(),
+                Instant.now()
+        );
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        when(shipmentRepository.save(shipment))
+                .thenReturn(shipment);
+
+        when(shipmentMapper.toResponse(shipment))
+                .thenReturn(expectedResponse);
+
+        // Act
+
+        ShipmentResponse response =
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.RETURNED
+                );
+
+        // Assert
+
+        assertThat(response)
+                .isEqualTo(expectedResponse);
+
+        assertThat(shipment.getStatus())
+                .isEqualTo(ShipmentStatus.RETURNED);
+
+        assertThat(shipment.getShippedAt())
+                .isEqualTo(shippedAt);
+
+        assertThat(shipment.getDeliveredAt())
+                .isNull();
+
+        verify(shipmentRepository)
+                .findById(shipmentId);
+
+        verify(shipmentRepository)
+                .save(shipment);
+
+        verify(shipmentMapper)
+                .toResponse(shipment);
+    }
+
+    @Test
+    void shouldUpdateShipmentStatusToReturnedFromInTransit() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Instant shippedAt = Instant.now().minusSeconds(3600);
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.IN_TRANSIT);
+        shipment.setShippedAt(shippedAt);
+
+        ShipmentResponse expectedResponse = new ShipmentResponse(
+                shipmentId,
+                UUID.randomUUID(),
+                "DHL",
+                "TRK-123",
+                ShipmentStatus.RETURNED,
+                Instant.now(),
+                Instant.now()
+        );
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        when(shipmentRepository.save(shipment))
+                .thenReturn(shipment);
+
+        when(shipmentMapper.toResponse(shipment))
+                .thenReturn(expectedResponse);
+
+        // Act
+
+        ShipmentResponse response =
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.RETURNED
+                );
+
+        // Assert
+
+        assertThat(response)
+                .isEqualTo(expectedResponse);
+
+        assertThat(shipment.getStatus())
+                .isEqualTo(ShipmentStatus.RETURNED);
+
+        assertThat(shipment.getShippedAt())
+                .isEqualTo(shippedAt);
+
+        assertThat(shipment.getDeliveredAt())
+                .isNull();
+
+        verify(shipmentRepository)
+                .findById(shipmentId);
+
+        verify(shipmentRepository)
+                .save(shipment);
+
+        verify(shipmentMapper)
+                .toResponse(shipment);
+    }
+
+    @Test
+    void shouldUpdateShipmentStatusToCancelled() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.PENDING);
+
+        ShipmentResponse expectedResponse = new ShipmentResponse(
+                shipmentId,
+                UUID.randomUUID(),
+                "DHL",
+                "TRK-123",
+                ShipmentStatus.CANCELLED,
+                Instant.now(),
+                Instant.now()
+        );
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        when(shipmentRepository.save(shipment))
+                .thenReturn(shipment);
+
+        when(shipmentMapper.toResponse(shipment))
+                .thenReturn(expectedResponse);
+
+        // Act
+
+        ShipmentResponse response =
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.CANCELLED
+                );
+
+        // Assert
+
+        assertThat(response)
+                .isEqualTo(expectedResponse);
+
+        assertThat(shipment.getStatus())
+                .isEqualTo(ShipmentStatus.CANCELLED);
+
+        assertThat(shipment.getShippedAt())
+                .isNull();
+
+        assertThat(shipment.getDeliveredAt())
+                .isNull();
+
+        verify(shipmentRepository).findById(shipmentId);
+        verify(shipmentRepository).save(shipment);
+        verify(shipmentMapper).toResponse(shipment);
+    }
+
+    @Test
+    void shouldUpdateShipmentStatusToCancelledFromPreparing() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.PREPARING);
+
+        ShipmentResponse expectedResponse = new ShipmentResponse(
+                shipmentId,
+                UUID.randomUUID(),
+                "DHL",
+                "TRK-123",
+                ShipmentStatus.CANCELLED,
+                Instant.now(),
+                Instant.now()
+        );
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        when(shipmentRepository.save(shipment))
+                .thenReturn(shipment);
+
+        when(shipmentMapper.toResponse(shipment))
+                .thenReturn(expectedResponse);
+
+        // Act
+
+        ShipmentResponse response =
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.CANCELLED
+                );
+
+        // Assert
+
+        assertThat(response)
+                .isEqualTo(expectedResponse);
+
+        assertThat(shipment.getStatus())
+                .isEqualTo(ShipmentStatus.CANCELLED);
+
+        assertThat(shipment.getShippedAt())
+                .isNull();
+
+        assertThat(shipment.getDeliveredAt())
+                .isNull();
+
+        verify(shipmentRepository).findById(shipmentId);
+        verify(shipmentRepository).save(shipment);
+        verify(shipmentMapper).toResponse(shipment);
+    }
+
+    // invalid transitions
+    @Test
+    void shouldThrowExceptionWhenPendingShipmentTransitionsToDelivered() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.PENDING);
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        // Act & Assert
+
+        assertThatThrownBy(() ->
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.DELIVERED
+                ))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(
+                        "Invalid status transition from PENDING to DELIVERED"
+                );
+
+        verify(shipmentRepository).findById(shipmentId);
+        verify(shipmentRepository, never()).save(any());
+        verifyNoInteractions(shipmentMapper);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenDeliveredShipmentTransitionsToInTransit() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.DELIVERED);
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        // Act & Assert
+
+        assertThatThrownBy(() ->
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.IN_TRANSIT
+                ))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Delivered shipments cannot be updated.");
+
+        verify(shipmentRepository).findById(shipmentId);
+        verify(shipmentRepository, never()).save(any());
+        verifyNoInteractions(shipmentMapper);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenCancelledShipmentTransitionsToShipped() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.CANCELLED);
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        // Act & Assert
+
+        assertThatThrownBy(() ->
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.SHIPPED
+                ))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Cancelled shipments cannot be updated.");
+
+        verify(shipmentRepository).findById(shipmentId);
+        verify(shipmentRepository, never()).save(any());
+        verifyNoInteractions(shipmentMapper);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenShipmentIsAlreadyInSameStatus() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setStatus(ShipmentStatus.PENDING);
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.of(shipment));
+
+        // Act & Assert
+
+        assertThatThrownBy(() ->
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.PENDING
+                ))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Shipment is already in status: PENDING");
+
+        verify(shipmentRepository).findById(shipmentId);
+        verify(shipmentRepository, never()).save(any());
+        verifyNoInteractions(shipmentMapper);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenShipmentDoesNotExistDuringStatusUpdate() {
+
+        // Arrange
+
+        UUID shipmentId = UUID.randomUUID();
+
+        when(shipmentRepository.findById(shipmentId))
+                .thenReturn(Optional.empty());
+
+        // Act & Assert
+
+        assertThatThrownBy(() ->
+                shipmentService.updateStatus(
+                        shipmentId,
+                        ShipmentStatus.PREPARING
+                ))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("Shipment not found with id: " + shipmentId);
+
+        verify(shipmentRepository).findById(shipmentId);
+        verify(shipmentRepository, never()).save(any());
+        verifyNoInteractions(shipmentMapper);
+    }
+
 }
+

@@ -595,4 +595,6 @@ class ShipmentControllerIT {
                 .andExpect(jsonPath("$.path")
                         .value("/api/v1/shipments/" + shipmentId));
     }
+
+
 }
