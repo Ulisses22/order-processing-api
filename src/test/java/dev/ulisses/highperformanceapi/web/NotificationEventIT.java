@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @Transactional
-class NotificationEventIntegrationTest {
+class NotificationEventIT {
 
     @Autowired
     private ApplicationEventPublisher eventPublisher;

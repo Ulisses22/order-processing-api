@@ -50,3 +50,10 @@ server:
 
 app:
   url: ${APP_URL}
+  security:
+    username: ${APP_SECURITY_USERNAME}
+    password: ${APP_SECURITY_PASSWORD}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION}
