@@ -18,21 +18,19 @@ import dev.ulisses.highperformanceapi.domain.repository.CustomerRepository;
 import dev.ulisses.highperformanceapi.domain.repository.InventoryRepository;
 import dev.ulisses.highperformanceapi.domain.repository.OrderRepository;
 import dev.ulisses.highperformanceapi.domain.repository.ProductRepository;
+import dev.ulisses.highperformanceapi.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -42,13 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class ShipmentControllerIT {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class ShipmentControllerIT extends IntegrationTest {
 
     @Autowired
     private ProductRepository productRepository;
@@ -61,12 +53,6 @@ class ShipmentControllerIT {
 
     @Autowired
     private OrderRepository orderRepository;
-
-    @Value("${APP_SECURITY_USERNAME}")
-    private String username;
-
-    @Value("${APP_SECURITY_PASSWORD}")
-    private String password;
 
     // HELPERS
 
@@ -129,7 +115,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -151,7 +137,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(shipmentRequest))
                 )
@@ -185,7 +171,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
@@ -221,7 +207,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -243,7 +229,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(shipmentRequest))
                 )
@@ -253,7 +239,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(shipmentRequest))
                 )
@@ -291,7 +277,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -307,7 +293,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/orders/{id}/cancel", order.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                 )
                 .andExpect(status().isOk());
 
@@ -321,7 +307,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(shipmentRequest))
                 )
@@ -358,7 +344,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -388,7 +374,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(shipmentRequest))
                 )
@@ -425,7 +411,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -455,7 +441,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(shipmentRequest))
                 )
@@ -485,7 +471,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(request)
                 )
@@ -525,7 +511,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -545,7 +531,7 @@ class ShipmentControllerIT {
 
         String shipmentResponse = mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(shipmentRequest))
                 )
@@ -561,7 +547,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         get("/api/v1/shipments/{id}", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")
@@ -587,7 +573,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         get("/api/v1/shipments/{id}", shipmentId)
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                 )
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
@@ -622,7 +608,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -639,7 +625,7 @@ class ShipmentControllerIT {
 
         String shipmentResponse = mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(shipmentRequest))
                 )
@@ -660,7 +646,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(statusRequest))
                 )
@@ -699,7 +685,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -716,7 +702,7 @@ class ShipmentControllerIT {
 
         String shipmentResponse = mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(shipmentRequest))
                 )
@@ -732,7 +718,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -746,7 +732,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -787,7 +773,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -801,7 +787,7 @@ class ShipmentControllerIT {
 
         String shipmentResponse = mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new CreateShipmentRequest(order.id(), "DHL")
@@ -819,7 +805,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -833,7 +819,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -847,7 +833,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -888,7 +874,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -902,7 +888,7 @@ class ShipmentControllerIT {
 
         String shipmentResponse = mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new CreateShipmentRequest(order.id(), "DHL")
@@ -920,7 +906,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -934,7 +920,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -948,7 +934,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -962,7 +948,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1003,7 +989,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -1017,7 +1003,7 @@ class ShipmentControllerIT {
 
         String shipmentResponse = mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new CreateShipmentRequest(order.id(), "DHL")
@@ -1035,7 +1021,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1049,7 +1035,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1063,7 +1049,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1104,7 +1090,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -1118,7 +1104,7 @@ class ShipmentControllerIT {
 
         String shipmentResponse = mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new CreateShipmentRequest(order.id(), "DHL")
@@ -1136,7 +1122,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1150,7 +1136,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1164,7 +1150,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1178,7 +1164,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1219,7 +1205,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -1233,7 +1219,7 @@ class ShipmentControllerIT {
 
         String shipmentResponse = mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new CreateShipmentRequest(order.id(), "DHL")
@@ -1256,7 +1242,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(statusRequest))
                 )
@@ -1291,7 +1277,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -1305,7 +1291,7 @@ class ShipmentControllerIT {
 
         String shipmentResponse = mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new CreateShipmentRequest(order.id(), "DHL")
@@ -1323,7 +1309,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1335,7 +1321,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1347,7 +1333,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1359,7 +1345,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1373,7 +1359,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1412,7 +1398,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -1426,7 +1412,7 @@ class ShipmentControllerIT {
 
         String shipmentResponse = mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new CreateShipmentRequest(order.id(), "DHL")
@@ -1444,7 +1430,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1459,7 +1445,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new UpdateShipmentStatusRequest(
@@ -1498,7 +1484,7 @@ class ShipmentControllerIT {
 
         String orderResponse = mockMvc.perform(
                         post("/api/v1/orders")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(orderRequest))
                 )
@@ -1512,7 +1498,7 @@ class ShipmentControllerIT {
 
         String shipmentResponse = mockMvc.perform(
                         post("/api/v1/shipments")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(
                                         new CreateShipmentRequest(order.id(), "DHL")
@@ -1535,7 +1521,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipment.id())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(statusRequest))
                 )
@@ -1565,7 +1551,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", shipmentId)
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
@@ -1594,7 +1580,7 @@ class ShipmentControllerIT {
 
         mockMvc.perform(
                         patch("/api/v1/shipments/{id}/status", UUID.randomUUID())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(request)
                 )

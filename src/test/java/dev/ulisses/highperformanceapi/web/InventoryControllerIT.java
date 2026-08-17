@@ -8,11 +8,13 @@ import dev.ulisses.highperformanceapi.domain.entity.Product;
 import dev.ulisses.highperformanceapi.domain.enums.ProductStatus;
 import dev.ulisses.highperformanceapi.domain.repository.InventoryRepository;
 import dev.ulisses.highperformanceapi.domain.repository.ProductRepository;
+import dev.ulisses.highperformanceapi.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class InventoryControllerIT {
+class InventoryControllerIT extends IntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -242,7 +244,7 @@ class InventoryControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/inventories/products/{productId}/reserve", product.getId())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )

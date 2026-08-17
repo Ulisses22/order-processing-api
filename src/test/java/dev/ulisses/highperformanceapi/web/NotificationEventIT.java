@@ -13,6 +13,7 @@ import dev.ulisses.highperformanceapi.domain.enums.OrderStatus;
 import dev.ulisses.highperformanceapi.domain.repository.CustomerRepository;
 import dev.ulisses.highperformanceapi.domain.repository.NotificationRepository;
 import dev.ulisses.highperformanceapi.domain.repository.OrderRepository;
+import dev.ulisses.highperformanceapi.support.IntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @Transactional
-class NotificationEventIT {
+class NotificationEventIT extends IntegrationTest {
 
     @Autowired
     private ApplicationEventPublisher eventPublisher;

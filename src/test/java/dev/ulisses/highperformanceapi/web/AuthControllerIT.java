@@ -1,5 +1,6 @@
 package dev.ulisses.highperformanceapi.web;
 
+import dev.ulisses.highperformanceapi.support.IntegrationTest;
 import org.springframework.http.HttpHeaders;
 import tools.jackson.databind.ObjectMapper;
 import dev.ulisses.highperformanceapi.application.dto.request.LoginRequest;
@@ -18,16 +19,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class AuthControllerIT {
+class AuthControllerIT extends IntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    private static final String USERNAME = "user";
-    private static final String PASSWORD = "60e90589-1976-4888-94b4-669c8b652732";
+    private String accessToken;
 
     @Test
     @DisplayName("Should login successfully")
@@ -97,12 +91,13 @@ class AuthControllerIT {
     }
 
     // HELPER
-    private String authenticate() throws Exception {
+    protected String authenticate() throws Exception {
 
-        LoginRequest request = new LoginRequest(
-                USERNAME,
-                PASSWORD
-        );
+        if (accessToken != null) {
+            return accessToken;
+        }
+
+        LoginRequest request = new LoginRequest(USERNAME, PASSWORD);
 
         String response = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -112,9 +107,11 @@ class AuthControllerIT {
                 .getResponse()
                 .getContentAsString();
 
-        return objectMapper.readTree(response)
+        accessToken = objectMapper.readTree(response)
                 .get("accessToken")
-                .asText();
+                .asString();
+
+        return accessToken;
     }
 
 }
