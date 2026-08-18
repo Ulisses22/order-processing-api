@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
-import java.util.List;
+import org.springframework.security.access.AccessDeniedException;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -102,6 +102,19 @@ public class GlobalExceptionHandler {
                 .body(buildErrorResponse(
                         HttpStatus.UNAUTHORIZED,
                         "Invalid username or password.",
+                        request.getRequestURI()
+                ));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(
+            AccessDeniedException ex,
+            HttpServletRequest request) {
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(buildErrorResponse(
+                        HttpStatus.FORBIDDEN,
+                        "You do not have permission to perform this action.",
                         request.getRequestURI()
                 ));
     }

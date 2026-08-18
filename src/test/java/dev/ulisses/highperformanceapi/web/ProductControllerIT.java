@@ -13,6 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -300,5 +301,22 @@ class ProductControllerIT extends IntegrationTest {
                                 .content(objectMapper.writeValueAsString(request))
                 )
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Should return 403 when user does not have required authority")
+    @WithMockUser(username = "user", authorities = "USER")
+    void shouldReturn403WhenUserDoesNotHaveRequiredAuthority() throws Exception {
+
+        mockMvc.perform(post("/api/v1/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "name": "Test Product",
+                              "sku": "TEST-001",
+                              "price": 19.99
+                            }
+                            """))
+                .andExpect(status().isForbidden());
     }
 }

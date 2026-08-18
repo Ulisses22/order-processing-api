@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -55,6 +56,7 @@ public class OrderController {
 
     @PatchMapping("/{id}/status")
     @Operation(summary = "Update order status")
+    @PreAuthorize("hasRole('ADMIN')")
     public OrderResponse updateStatus(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateOrderStatusRequest request

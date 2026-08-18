@@ -1,5 +1,6 @@
 package dev.ulisses.highperformanceapi.infrastructure.config;
 
+import dev.ulisses.highperformanceapi.infrastructure.security.handler.JwtAccessDeniedHandler;
 import dev.ulisses.highperformanceapi.infrastructure.security.handler.JwtAuthenticationEntryPoint;
 import dev.ulisses.highperformanceapi.infrastructure.security.jwt.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
@@ -15,16 +16,20 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
     SecurityFilterChain security(
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter,
-            JwtAuthenticationEntryPoint authenticationEntryPoint) throws Exception {
+            JwtAuthenticationEntryPoint authenticationEntryPoint,
+            JwtAccessDeniedHandler accessDeniedHandler) throws Exception {
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -32,7 +37,10 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exception ->
-                        exception.authenticationEntryPoint(authenticationEntryPoint))
+                        exception
+                                .authenticationEntryPoint(authenticationEntryPoint)
+                                .accessDeniedHandler(accessDeniedHandler)
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/api/v1/auth/login").permitAll()
@@ -56,5 +64,12 @@ public class SecurityConfig {
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    JwtAccessDeniedHandler accessDeniedHandler(
+            ObjectMapper objectMapper) {
+
+        return new JwtAccessDeniedHandler(objectMapper);
     }
 }
