@@ -2,6 +2,7 @@ package dev.ulisses.highperformanceapi.application.service.impl;
 
 import dev.ulisses.highperformanceapi.application.dto.request.LoginRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.LoginResponse;
+import dev.ulisses.highperformanceapi.application.service.AccountLockoutService;
 import dev.ulisses.highperformanceapi.application.service.AuthenticationService;
 import dev.ulisses.highperformanceapi.application.service.RefreshTokenService;
 import dev.ulisses.highperformanceapi.domain.entity.User;
@@ -10,6 +11,8 @@ import dev.ulisses.highperformanceapi.infrastructure.config.JwtProperties;
 import dev.ulisses.highperformanceapi.infrastructure.security.jwt.JwtService;
 import dev.ulisses.highperformanceapi.infrastructure.security.user.CustomUserDetailsService;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,6 +25,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
     private final CustomUserDetailsService userDetailsService;
+    private final AccountLockoutService accountLockoutService;
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -33,7 +37,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             JwtProperties jwtProperties,
             RefreshTokenService refreshTokenService,
             UserRepository userRepository,
-            CustomUserDetailsService userDetailsService) {
+            CustomUserDetailsService userDetailsService,
+            AccountLockoutService accountLockoutService) {
 
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
@@ -41,36 +46,50 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         this.refreshTokenService = refreshTokenService;
         this.userRepository = userRepository;
         this.userDetailsService = userDetailsService;
+        this.accountLockoutService = accountLockoutService;
     }
 
     @Override
     public LoginResponse login(LoginRequest request) {
 
-        Authentication authentication = authenticationManager.authenticate(
-                UsernamePasswordAuthenticationToken.unauthenticated(
-                        request.username(),
-                        request.password()
-                )
-        );
+        User user = userRepository.findByUsername(request.username())
+                .orElseThrow(() ->
+                        new BadCredentialsException("Invalid credentials.")
+                );
 
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        if (accountLockoutService.isLocked(user)) {
+            throw new LockedException("Account is temporarily locked.");
+        }
 
-        User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow(() ->
-                new IllegalStateException(
-                        "Authenticated user was not found."
-                )
-        );
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    UsernamePasswordAuthenticationToken.unauthenticated(
+                            request.username(),
+                            request.password()
+                    )
+            );
 
-        String accessToken = jwtService.generateToken(userDetails);
+            accountLockoutService.handleSuccessfulLogin(user);
 
-        String refreshToken = refreshTokenService.create(user);
+            UserDetails userDetails =
+                    (UserDetails) authentication.getPrincipal();
 
-        return new LoginResponse(
-                accessToken,
-                refreshToken,
-                TOKEN_TYPE,
-                jwtProperties.expiration()
-        );
+            String accessToken = jwtService.generateToken(userDetails);
+            String refreshToken = refreshTokenService.create(user);
+
+            return new LoginResponse(
+                    accessToken,
+                    refreshToken,
+                    TOKEN_TYPE,
+                    jwtProperties.expiration()
+            );
+
+        } catch (BadCredentialsException ex) {
+
+            accountLockoutService.handleFailedLogin(request.username());
+
+            throw ex;
+        }
     }
 
     @Override

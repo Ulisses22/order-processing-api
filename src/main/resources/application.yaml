@@ -54,6 +54,11 @@ app:
     username: ${APP_SECURITY_USERNAME}
     password: ${APP_SECURITY_PASSWORD}
 
+security:
+  account-lockout:
+    max-failed-attempts: ${SECURITY_ACCOUNT_LOCKOUT_MAX_FAILED_ATTEMPTS}
+    lock-duration-seconds: ${SECURITY_ACCOUNT_LOCKOUT_LOCK_DURATION_SECONDS}
+
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:900000}

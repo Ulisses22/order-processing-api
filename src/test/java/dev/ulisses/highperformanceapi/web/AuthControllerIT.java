@@ -2,15 +2,12 @@ package dev.ulisses.highperformanceapi.web;
 
 import dev.ulisses.highperformanceapi.support.IntegrationTest;
 import org.springframework.http.HttpHeaders;
-import tools.jackson.databind.ObjectMapper;
 import dev.ulisses.highperformanceapi.application.dto.request.LoginRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -18,8 +15,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
 class AuthControllerIT extends IntegrationTest {
 
     private String accessToken;
@@ -316,6 +311,56 @@ class AuthControllerIT extends IntegrationTest {
                                         "refreshToken": "%s"
                                     }
                                     """.formatted(refreshToken))
+                )
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should lock account after max failed attempts")
+    void shouldLockAccountAfterMaxFailedAttempts() throws Exception {
+
+        LoginRequest request = new LoginRequest(
+                USERNAME,
+                "wrong-password"
+        );
+
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(
+                            post("/api/v1/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request))
+                    )
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Test
+    @DisplayName("Should reject login when account is locked")
+    void shouldRejectLoginWhenAccountIsLocked() throws Exception {
+
+        LoginRequest wrongPassword = new LoginRequest(
+                USERNAME,
+                "wrong-password"
+        );
+
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(
+                            post("/api/v1/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(wrongPassword))
+                    )
+                    .andExpect(status().isUnauthorized());
+        }
+
+        LoginRequest correctPassword = new LoginRequest(
+                USERNAME,
+                PASSWORD
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(correctPassword))
                 )
                 .andExpect(status().isUnauthorized());
     }
