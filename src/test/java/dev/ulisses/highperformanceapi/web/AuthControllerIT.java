@@ -1,12 +1,15 @@
 package dev.ulisses.highperformanceapi.web;
 
+import dev.ulisses.highperformanceapi.domain.entity.User;
+import dev.ulisses.highperformanceapi.domain.repository.UserRepository;
+import dev.ulisses.highperformanceapi.infrastructure.security.ratelimit.RateLimitFilter;
 import dev.ulisses.highperformanceapi.support.IntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import dev.ulisses.highperformanceapi.application.dto.request.LoginRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -18,6 +21,28 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AuthControllerIT extends IntegrationTest {
 
     private String accessToken;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private RateLimitFilter rateLimitFilter;
+
+
+    @BeforeEach
+    void resetTestState() {
+
+        User user = userRepository
+                .findByUsername(USERNAME)
+                .orElseThrow();
+
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+
+        userRepository.save(user);
+
+        rateLimitFilter.clearBuckets();
+    }
 
     @Test
     @DisplayName("Should login successfully")
@@ -363,6 +388,78 @@ class AuthControllerIT extends IntegrationTest {
                                 .content(objectMapper.writeValueAsString(correctPassword))
                 )
                 .andExpect(status().isUnauthorized());
+    }
+
+    // Rate Limiting tests
+    @Test
+    @DisplayName("Should return 429 when login rate limit is exceeded")
+    void shouldReturn429WhenLoginRateLimitIsExceeded() throws Exception {
+
+        LoginRequest request = new LoginRequest(
+                USERNAME,
+                PASSWORD
+        );
+
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(
+                    post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request))
+            );
+        }
+
+        mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request))
+                )
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    @DisplayName("Should return 429 when refresh rate limit is exceeded")
+    void shouldReturn429WhenRefreshRateLimitIsExceeded() throws Exception {
+
+        LoginRequest loginRequest =
+                new LoginRequest(USERNAME, PASSWORD);
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginRequest))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String refreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(
+                    post("/api/v1/auth/refresh")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                            {
+                                "refreshToken": "%s"
+                            }
+                            """.formatted(refreshToken))
+            );
+        }
+
+        mockMvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                        {
+                            "refreshToken": "%s"
+                        }
+                        """.formatted(refreshToken))
+                )
+                .andExpect(status().isTooManyRequests());
     }
 
     // HELPER

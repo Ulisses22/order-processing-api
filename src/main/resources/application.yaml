@@ -58,6 +58,10 @@ security:
   account-lockout:
     max-failed-attempts: ${SECURITY_ACCOUNT_LOCKOUT_MAX_FAILED_ATTEMPTS}
     lock-duration-seconds: ${SECURITY_ACCOUNT_LOCKOUT_LOCK_DURATION_SECONDS}
+  rate-limit:
+    capacity: ${RATE_LIMIT_CAPACITY:10}
+    refill-tokens: ${RATE_LIMIT_REFILL_TOKENS:10}
+    refill-duration-seconds: ${RATE_LIMIT_REFILL_DURATION_SECONDS:60}
 
 jwt:
   secret: ${JWT_SECRET}

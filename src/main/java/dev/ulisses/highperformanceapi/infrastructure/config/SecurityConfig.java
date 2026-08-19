@@ -3,6 +3,7 @@ package dev.ulisses.highperformanceapi.infrastructure.config;
 import dev.ulisses.highperformanceapi.infrastructure.security.handler.JwtAccessDeniedHandler;
 import dev.ulisses.highperformanceapi.infrastructure.security.handler.JwtAuthenticationEntryPoint;
 import dev.ulisses.highperformanceapi.infrastructure.security.jwt.JwtAuthenticationFilter;
+import dev.ulisses.highperformanceapi.infrastructure.security.ratelimit.RateLimitFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,6 +25,12 @@ import tools.jackson.databind.ObjectMapper;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private final RateLimitFilter rateLimitFilter;
+
+    public SecurityConfig(RateLimitFilter rateLimitFilter) {
+        this.rateLimitFilter = rateLimitFilter;
+    }
+
     @Bean
     SecurityFilterChain security(
             HttpSecurity http,
@@ -35,15 +42,26 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        ))
                 .exceptionHandling(exception ->
                         exception
                                 .authenticationEntryPoint(authenticationEntryPoint)
                                 .accessDeniedHandler(accessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/revoke").permitAll()
+                        .requestMatchers(
+                                "/actuator/health",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/revoke"
+                        ).permitAll()
                         .anyRequest().authenticated()
+                )
+                .addFilterBefore(
+                        rateLimitFilter,
+                        UsernamePasswordAuthenticationFilter.class
                 )
                 .addFilterBefore(
                         jwtAuthenticationFilter,
