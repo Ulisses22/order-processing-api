@@ -21,7 +21,7 @@ public class AuditLog extends BaseEntity {
     @Column(name = "entity_name", nullable = false, length = 100)
     private String entityName;
 
-    @Column(name = "entity_id", nullable = false)
+    @Column(name = "entity_id")
     private UUID entityId;
 
     @Enumerated(EnumType.STRING)

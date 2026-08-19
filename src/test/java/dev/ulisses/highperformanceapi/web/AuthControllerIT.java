@@ -1,6 +1,8 @@
 package dev.ulisses.highperformanceapi.web;
 
 import dev.ulisses.highperformanceapi.domain.entity.User;
+import dev.ulisses.highperformanceapi.domain.enums.AuditAction;
+import dev.ulisses.highperformanceapi.domain.repository.AuditLogRepository;
 import dev.ulisses.highperformanceapi.domain.repository.UserRepository;
 import dev.ulisses.highperformanceapi.infrastructure.security.ratelimit.RateLimitFilter;
 import dev.ulisses.highperformanceapi.support.IntegrationTest;
@@ -13,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -28,6 +31,8 @@ class AuthControllerIT extends IntegrationTest {
     @Autowired
     private RateLimitFilter rateLimitFilter;
 
+    @Autowired
+    private AuditLogRepository auditLogRepository;
 
     @BeforeEach
     void resetTestState() {
@@ -484,6 +489,199 @@ class AuthControllerIT extends IntegrationTest {
                 .asString();
 
         return accessToken;
+    }
+
+    @Test
+    @DisplayName("Should return 429 when revoke rate limit is exceeded")
+    void shouldReturn429WhenRevokeRateLimitIsExceeded() throws Exception {
+
+        LoginRequest loginRequest =
+                new LoginRequest(USERNAME, PASSWORD);
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginRequest))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String refreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(
+                    post("/api/v1/auth/revoke")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                        {
+                            "refreshToken": "%s"
+                        }
+                        """.formatted(refreshToken))
+            );
+        }
+
+        mockMvc.perform(
+                        post("/api/v1/auth/revoke")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                            {
+                                "refreshToken": "%s"
+                            }
+                            """.formatted(refreshToken))
+                )
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    @DisplayName("Should record refresh token created audit event")
+    void shouldRecordRefreshTokenCreatedAuditEvent() throws Exception {
+
+        mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        new LoginRequest(USERNAME, PASSWORD)
+                                ))
+                )
+                .andExpect(status().isOk());
+
+        boolean auditRecorded = auditLogRepository.findAll()
+                .stream()
+                .anyMatch(audit ->
+                        audit.getAction() == AuditAction.REFRESH_TOKEN_CREATED
+                                && USERNAME.equals(audit.getUsername())
+                );
+
+        assertTrue(auditRecorded);
+    }
+
+    @Test
+    @DisplayName("Should record refresh token rotated audit event")
+    void shouldRecordRefreshTokenRotatedAuditEvent() throws Exception {
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        new LoginRequest(USERNAME, PASSWORD)
+                                ))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String refreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        mockMvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                        {
+                            "refreshToken": "%s"
+                        }
+                        """.formatted(refreshToken))
+                )
+                .andExpect(status().isOk());
+
+        boolean auditRecorded = auditLogRepository
+                .findAll()
+                .stream()
+                .anyMatch(audit ->
+                        audit.getAction() == AuditAction.REFRESH_TOKEN_ROTATED
+                                && USERNAME.equals(audit.getUsername())
+                                && "Refresh token rotated."
+                                .equals(audit.getDetails())
+                );
+
+        assertTrue(auditRecorded);
+    }
+
+    @Test
+    @DisplayName("Should record refresh token revoked audit event")
+    void shouldRecordRefreshTokenRevokedAuditEvent() throws Exception {
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        new LoginRequest(USERNAME, PASSWORD)
+                                ))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String refreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        mockMvc.perform(
+                        post("/api/v1/auth/revoke")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                    "refreshToken": "%s"
+                                }
+                                """.formatted(refreshToken))
+                )
+                .andExpect(status().isNoContent());
+
+        boolean auditRecorded = auditLogRepository.findAll()
+                .stream()
+                .anyMatch(audit ->
+                        audit.getAction() == AuditAction.REFRESH_TOKEN_REVOKED
+                                && USERNAME.equals(audit.getUsername())
+                                && "Refresh token revoked."
+                                .equals(audit.getDetails())
+                );
+
+        assertTrue(auditRecorded);
+    }
+
+    @Test
+    @DisplayName("Should record rate limit exceeded audit event")
+    void shouldRecordRateLimitExceededAuditEvent() throws Exception {
+
+        LoginRequest request = new LoginRequest(
+                USERNAME,
+                PASSWORD
+        );
+
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(
+                    post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request))
+            );
+        }
+
+        mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request))
+                )
+                .andExpect(status().isTooManyRequests());
+
+        boolean auditRecorded = auditLogRepository.findAll()
+                .stream()
+                .anyMatch(audit ->
+                        audit.getAction() == AuditAction.RATE_LIMIT_EXCEEDED
+                                && "Rate limit exceeded for /api/v1/auth/login."
+                                .equals(audit.getDetails())
+                );
+
+        assertTrue(auditRecorded);
     }
 
 }

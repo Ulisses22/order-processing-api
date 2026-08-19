@@ -1,8 +1,10 @@
 package dev.ulisses.highperformanceapi.application.service.impl;
 
 import dev.ulisses.highperformanceapi.application.service.RefreshTokenService;
+import dev.ulisses.highperformanceapi.application.service.SecurityAuditService;
 import dev.ulisses.highperformanceapi.domain.entity.RefreshToken;
 import dev.ulisses.highperformanceapi.domain.entity.User;
+import dev.ulisses.highperformanceapi.domain.enums.AuditAction;
 import dev.ulisses.highperformanceapi.domain.repository.RefreshTokenRepository;
 import dev.ulisses.highperformanceapi.infrastructure.config.JwtProperties;
 import org.springframework.stereotype.Service;
@@ -23,15 +25,18 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     private final JwtProperties jwtProperties;
 
     private final RefreshTokenRepository refreshTokenRepository;
+    private final SecurityAuditService securityAuditService;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
     public RefreshTokenServiceImpl(
             RefreshTokenRepository refreshTokenRepository,
-            JwtProperties jwtProperties) {
+            JwtProperties jwtProperties,
+            SecurityAuditService securityAuditService) {
 
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtProperties = jwtProperties;
+        this.securityAuditService = securityAuditService;
     }
 
     @Override
@@ -48,6 +53,13 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         );
 
         refreshTokenRepository.save(refreshToken);
+
+        securityAuditService.record(
+                AuditAction.REFRESH_TOKEN_CREATED,
+                refreshToken.getId(),
+                user.getUsername(),
+                "Refresh token created."
+        );
 
         return rawToken;
     }
@@ -87,6 +99,13 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         refreshToken.setRevokedAt(Instant.now());
         refreshTokenRepository.save(refreshToken);
 
+        securityAuditService.record(
+                AuditAction.REFRESH_TOKEN_ROTATED,
+                refreshToken.getId(),
+                refreshToken.getUser().getUsername(),
+                "Refresh token rotated."
+        );
+
         return create(user);
     }
 
@@ -98,6 +117,13 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         if (refreshToken.getRevokedAt() == null) {
             refreshToken.setRevokedAt(Instant.now());
             refreshTokenRepository.save(refreshToken);
+
+            securityAuditService.record(
+                    AuditAction.REFRESH_TOKEN_REVOKED,
+                    refreshToken.getId(),
+                    refreshToken.getUser().getUsername(),
+                    "Refresh token revoked."
+            );
         }
     }
 

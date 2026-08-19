@@ -5,7 +5,9 @@ import dev.ulisses.highperformanceapi.application.dto.response.LoginResponse;
 import dev.ulisses.highperformanceapi.application.service.AccountLockoutService;
 import dev.ulisses.highperformanceapi.application.service.AuthenticationService;
 import dev.ulisses.highperformanceapi.application.service.RefreshTokenService;
+import dev.ulisses.highperformanceapi.application.service.SecurityAuditService;
 import dev.ulisses.highperformanceapi.domain.entity.User;
+import dev.ulisses.highperformanceapi.domain.enums.AuditAction;
 import dev.ulisses.highperformanceapi.domain.repository.UserRepository;
 import dev.ulisses.highperformanceapi.infrastructure.config.JwtProperties;
 import dev.ulisses.highperformanceapi.infrastructure.security.jwt.JwtService;
@@ -27,6 +29,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final UserRepository userRepository;
     private final CustomUserDetailsService userDetailsService;
     private final AccountLockoutService accountLockoutService;
+    private final SecurityAuditService securityAuditService;
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -39,7 +42,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             RefreshTokenService refreshTokenService,
             UserRepository userRepository,
             CustomUserDetailsService userDetailsService,
-            AccountLockoutService accountLockoutService) {
+            AccountLockoutService accountLockoutService,
+            SecurityAuditService securityAuditService) {
 
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
@@ -48,6 +52,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         this.userRepository = userRepository;
         this.userDetailsService = userDetailsService;
         this.accountLockoutService = accountLockoutService;
+        this.securityAuditService = securityAuditService;
     }
 
     @Override
@@ -78,6 +83,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             String accessToken = jwtService.generateToken(userDetails);
             String refreshToken = refreshTokenService.create(user);
 
+            securityAuditService.record(
+                    AuditAction.LOGIN_SUCCESS,
+                    user.getId(),
+                    user.getUsername(),
+                    "User logged in successfully."
+            );
+
             return new LoginResponse(
                     accessToken,
                     refreshToken,
@@ -88,6 +100,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         } catch (BadCredentialsException ex) {
 
             accountLockoutService.handleFailedLogin(request.username());
+
+            securityAuditService.record(
+                    AuditAction.LOGIN_FAILURE,
+                    user.getId(),
+                    user.getUsername(),
+                    "Invalid credentials."
+            );
 
             throw ex;
         }

@@ -1,5 +1,7 @@
 package dev.ulisses.highperformanceapi.infrastructure.security.ratelimit;
 
+import dev.ulisses.highperformanceapi.application.service.SecurityAuditService;
+import dev.ulisses.highperformanceapi.domain.enums.AuditAction;
 import dev.ulisses.highperformanceapi.infrastructure.config.RateLimitProperties;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
@@ -25,12 +27,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final String REVOKE_PATH = "/api/v1/auth/revoke";
 
     private final RateLimitProperties properties;
+    private final SecurityAuditService securityAuditService;
 
     private final Map<String, Bucket> buckets =
             new ConcurrentHashMap<>();
 
-    public RateLimitFilter(RateLimitProperties properties) {
+    public RateLimitFilter(
+            RateLimitProperties properties,
+            SecurityAuditService securityAuditService) {
+
         this.properties = properties;
+        this.securityAuditService = securityAuditService;
     }
 
     public void clearBuckets() {
@@ -61,16 +68,23 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
+        securityAuditService.record(
+                AuditAction.RATE_LIMIT_EXCEEDED,
+                null,
+                clientIp,
+                "Rate limit exceeded for " + request.getRequestURI() + "."
+        );
+
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType("application/json");
 
         response.getWriter().write("""
-                {
-                    "status": 429,
-                    "error": "Too Many Requests",
-                    "message": "Rate limit exceeded."
-                }
-                """);
+        {
+            "status": 429,
+            "error": "Too Many Requests",
+            "message": "Rate limit exceeded."
+        }
+        """);
     }
 
     private Bucket createBucket() {

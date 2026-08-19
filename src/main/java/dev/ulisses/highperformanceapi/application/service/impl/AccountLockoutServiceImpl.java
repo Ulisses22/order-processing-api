@@ -1,7 +1,9 @@
 package dev.ulisses.highperformanceapi.application.service.impl;
 
 import dev.ulisses.highperformanceapi.application.service.AccountLockoutService;
+import dev.ulisses.highperformanceapi.application.service.SecurityAuditService;
 import dev.ulisses.highperformanceapi.domain.entity.User;
+import dev.ulisses.highperformanceapi.domain.enums.AuditAction;
 import dev.ulisses.highperformanceapi.domain.repository.UserRepository;
 import dev.ulisses.highperformanceapi.infrastructure.config.AccountLockoutProperties;
 import org.springframework.stereotype.Service;
@@ -15,13 +17,16 @@ public class AccountLockoutServiceImpl implements AccountLockoutService {
 
     private final UserRepository userRepository;
     private final AccountLockoutProperties properties;
+    private final SecurityAuditService securityAuditService;
 
     public AccountLockoutServiceImpl(
             UserRepository userRepository,
-            AccountLockoutProperties properties) {
+            AccountLockoutProperties properties,
+            SecurityAuditService securityAuditService) {
 
         this.userRepository = userRepository;
         this.properties = properties;
+        this.securityAuditService = securityAuditService;
     }
 
     @Override
@@ -41,6 +46,13 @@ public class AccountLockoutServiceImpl implements AccountLockoutService {
                                         .plusSeconds(
                                                 properties.lockDurationSeconds()
                                         )
+                        );
+
+                        securityAuditService.record(
+                                AuditAction.ACCOUNT_LOCKED,
+                                user.getId(),
+                                user.getUsername(),
+                                "Account locked after maximum failed login attempts."
                         );
                     }
 
@@ -78,6 +90,13 @@ public class AccountLockoutServiceImpl implements AccountLockoutService {
         user.setFailedLoginAttempts(0);
 
         userRepository.save(user);
+
+        securityAuditService.record(
+                AuditAction.ACCOUNT_UNLOCKED,
+                user.getId(),
+                user.getUsername(),
+                "Account lock expired."
+        );
 
         return false;
     }
