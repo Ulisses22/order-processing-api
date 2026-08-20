@@ -71,7 +71,11 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @Cacheable(cacheNames = "products", key = "#id")
+    @Cacheable(
+            cacheNames = "products",
+            key = "#id",
+            sync = true
+    )
     @Transactional(readOnly = true)
     public ProductResponse getById(UUID id) {
         Product product = productRepository.findById(id).orElseThrow(
@@ -96,7 +100,11 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @CacheEvict(cacheNames = "products", key = "#id")
+    @CacheEvict(
+            cacheNames = "products",
+            key = "#id",
+            beforeInvocation = true
+    )
     public void delete(UUID id) {
         Product product = productRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Product with id '%s' not found".formatted(id))
