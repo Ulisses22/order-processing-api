@@ -3,20 +3,12 @@ spring:
   output:
     ansi:
       enabled: ALWAYS
+
   config:
     import: "optional:file:.env[.properties]"
+
   application:
     name: high-performance-api
-
-  management:
-    endpoints:
-      web:
-        exposure:
-          include: health,info,metrics,prometheus
-    endpoint:
-      # in PROD use "when-authorized"
-      health:
-        show-details: always
 
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
@@ -47,13 +39,27 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
 
   cache:
-    type:
-      redis
+    type: redis
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
+
+  endpoint:
+    health:
+      # in PROD use "when-authorized"
+      show-details: always
 
 server:
   port: ${SERVER_PORT}
