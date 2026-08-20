@@ -55,7 +55,9 @@ public class SecurityConfig {
                                 "/actuator/health",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
-                                "/api/v1/auth/revoke"
+                                "/api/v1/auth/revoke",
+                                // only locally
+                                "/actuator/prometheus"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
