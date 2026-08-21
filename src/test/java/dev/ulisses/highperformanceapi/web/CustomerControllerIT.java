@@ -2,6 +2,8 @@ package dev.ulisses.highperformanceapi.web;
 
 import dev.ulisses.highperformanceapi.application.dto.request.UpdateCustomerRequest;
 import dev.ulisses.highperformanceapi.support.IntegrationTest;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import dev.ulisses.highperformanceapi.application.dto.request.CreateCustomerRequest;
@@ -31,7 +33,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CustomerControllerIT extends IntegrationTest {
+
+    private String accessToken;
+
+    @BeforeAll
+    void authenticateOnce() throws Exception {
+        accessToken = authenticate();
+    }
 
     @Autowired
     private CustomerRepository customerRepository;
@@ -42,22 +52,22 @@ class CustomerControllerIT extends IntegrationTest {
 
         CreateCustomerRequest request =
                 new CreateCustomerRequest(
-                        "Ulisses",
-                        "Alves",
+                        "Willian",
+                        "Clark",
                         "user@email.com"
                 );
 
         mockMvc.perform(
                         post("/api/v1/customers")
-                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
                 .andDo(print())
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.firstName").value("Ulisses"))
-                .andExpect(jsonPath("$.lastName").value("Alves"))
+                .andExpect(jsonPath("$.firstName").value("Willian"))
+                .andExpect(jsonPath("$.lastName").value("Clark"))
                 .andExpect(jsonPath("$.email").value("user@email.com"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
@@ -82,7 +92,7 @@ class CustomerControllerIT extends IntegrationTest {
 
         mockMvc.perform(
                         get("/api/v1/customers/{id}", customer.getId())
-                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(customer.getId().toString()))
@@ -95,7 +105,7 @@ class CustomerControllerIT extends IntegrationTest {
 
         mockMvc.perform(
                         get("/api/v1/customers/{id}", UUID.randomUUID())
-                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 )
                 .andExpect(status().isNotFound());
     }
@@ -104,29 +114,18 @@ class CustomerControllerIT extends IntegrationTest {
     @DisplayName("Should return paged customers")
     void shouldReturnPagedCustomers() throws Exception {
 
-        Customer c1 = new Customer();
-        c1.setFirstName("John");
-        c1.setLastName("Doe");
-        c1.setEmail("john@email.com");
-        c1.setStatus(CustomerStatus.ACTIVE);
-
-        Customer c2 = new Customer();
-        c2.setFirstName("Jane");
-        c2.setLastName("Doe");
-        c2.setEmail("jane@email.com");
-        c2.setStatus(CustomerStatus.ACTIVE);
-
-        customerRepository.save(c1);
-        customerRepository.save(c2);
-
         mockMvc.perform(
                         get("/api/v1/customers")
-                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + accessToken
+                                )
                 )
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(2)))
-                .andExpect(jsonPath("$.totalElements").value(2))
-                .andExpect(jsonPath("$.number").value(0));
+                .andExpect(jsonPath("$.content", hasSize(20)))
+                .andExpect(jsonPath("$.number").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.numberOfElements").value(20));
     }
 
     @Test
@@ -149,7 +148,7 @@ class CustomerControllerIT extends IntegrationTest {
 
         mockMvc.perform(
                         put("/api/v1/customers/{id}", customer.getId())
-                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
@@ -172,7 +171,7 @@ class CustomerControllerIT extends IntegrationTest {
 
         mockMvc.perform(
                         delete("/api/v1/customers/{id}", customer.getId())
-                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 )
                 .andExpect(status().isNoContent());
 
@@ -185,7 +184,7 @@ class CustomerControllerIT extends IntegrationTest {
 
         mockMvc.perform(
                         delete("/api/v1/customers/{id}", UUID.randomUUID())
-                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 )
                 .andExpect(status().isNotFound());
     }
@@ -203,7 +202,7 @@ class CustomerControllerIT extends IntegrationTest {
 
         mockMvc.perform(
                         post("/api/v1/customers")
-                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
@@ -231,10 +230,119 @@ class CustomerControllerIT extends IntegrationTest {
 
         mockMvc.perform(
                         post("/api/v1/customers")
-                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
                 .andExpect(status().is(HttpStatus.CONFLICT.value()));
+    }
+
+    @Test
+    @DisplayName("Should search customers by name")
+    void shouldSearchCustomersByName() throws Exception {
+
+        Customer john = new Customer();
+        john.setFirstName("John");
+        john.setLastName("Doe");
+        john.setEmail("john.search@email.com");
+        john.setStatus(CustomerStatus.ACTIVE);
+
+        Customer jane = new Customer();
+        jane.setFirstName("Jane");
+        jane.setLastName("Smith");
+        jane.setEmail("jane.search@email.com");
+        jane.setStatus(CustomerStatus.ACTIVE);
+
+        customerRepository.save(john);
+        customerRepository.saveAndFlush(jane);
+
+        mockMvc.perform(
+                        get("/api/v1/customers")
+                                .param("name", "john")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + accessToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].firstName").value("John"))
+                .andExpect(jsonPath("$.content[0].email")
+                        .value("john.search@email.com"));
+    }
+
+    @Test
+    @DisplayName("Should search customers by email")
+    void shouldSearchCustomersByEmail() throws Exception {
+
+        Customer john = new Customer();
+        john.setFirstName("John");
+        john.setLastName("Doe");
+        john.setEmail("john.search@email.com");
+        john.setStatus(CustomerStatus.ACTIVE);
+
+        Customer jane = new Customer();
+        jane.setFirstName("Jane");
+        jane.setLastName("Smith");
+        jane.setEmail("jane.search@email.com");
+        jane.setStatus(CustomerStatus.ACTIVE);
+
+        customerRepository.save(john);
+        customerRepository.saveAndFlush(jane);
+
+        mockMvc.perform(
+                        get("/api/v1/customers")
+                                .param("email", "john.search")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + accessToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].email")
+                        .value("john.search@email.com"));
+    }
+
+    @Test
+    @DisplayName("Should apply requested pagination")
+    void shouldApplyRequestedPagination() throws Exception {
+
+        Customer customer1 = new Customer();
+        customer1.setFirstName("John");
+        customer1.setLastName("One");
+        customer1.setEmail("pagination1@email.com");
+        customer1.setStatus(CustomerStatus.ACTIVE);
+
+        Customer customer2 = new Customer();
+        customer2.setFirstName("Jane");
+        customer2.setLastName("Two");
+        customer2.setEmail("pagination2@email.com");
+        customer2.setStatus(CustomerStatus.ACTIVE);
+
+        Customer customer3 = new Customer();
+        customer3.setFirstName("Mark");
+        customer3.setLastName("Three");
+        customer3.setEmail("pagination3@email.com");
+        customer3.setStatus(CustomerStatus.ACTIVE);
+
+        customerRepository.save(customer1);
+        customerRepository.save(customer2);
+        customerRepository.saveAndFlush(customer3);
+
+        mockMvc.perform(
+                        get("/api/v1/customers")
+                                .param("page", "0")
+                                .param("size", "2")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + accessToken
+                                )
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.number").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.numberOfElements").value(2));
     }
 }
