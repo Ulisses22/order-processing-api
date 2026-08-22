@@ -157,6 +157,12 @@
 			<artifactId>spring-boot-starter-cache</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>net.datafaker</groupId>
+			<artifactId>datafaker</artifactId>
+			<version>2.4.3</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>
