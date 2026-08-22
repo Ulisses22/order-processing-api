@@ -1,5 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
+import { sleep } from 'k6';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const USERNAME = __ENV.K6_USERNAME;
@@ -7,12 +8,12 @@ const PASSWORD = __ENV.K6_PASSWORD;
 
 export const options = {
     stages: [
-        { duration: '10s', target: 1 },
-        { duration: '10s', target: 5 },
-        { duration: '10s', target: 10 },
-        { duration: '10s', target: 20 },
-        { duration: '10s', target: 50 },
-        { duration: '10s', target: 0 },
+        { duration: '30s', target: 10 },
+        { duration: '30s', target: 20 },
+        { duration: '30s', target: 30 },
+        { duration: '30s', target: 40 },
+        { duration: '30s', target: 50 },
+        { duration: '30s', target: 0 },
     ],
 
     thresholds: {
@@ -85,6 +86,5 @@ export default function (data) {
         'response has content': (r) => r.body.length > 0,
     });
 
-    // removed for capacity baseline.
-    // sleep(0.1);
+    sleep(0.1);
 }
