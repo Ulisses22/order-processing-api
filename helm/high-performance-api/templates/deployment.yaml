@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "high-performance-api.fullname" . }}
+  labels:
+    {{- include "high-performance-api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "high-performance-api.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "high-performance-api.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ include "high-performance-api.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          envFrom:
+            - configMapRef:
+                name: {{ include "high-performance-api.fullname" . }}-config
+            - secretRef:
+                name: {{ .Values.secret.name }}
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3

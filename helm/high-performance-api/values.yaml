@@ -1,0 +1,59 @@
+replicaCount: 2
+
+image:
+  repository: high-performance-api
+  tag: "0.1.0"
+  pullPolicy: Never
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: http
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+config:
+  serverPort: "8080"
+  appUrl: "http://localhost:8080"
+
+  postgresHost: "172.19.0.1"
+  postgresPort: "5432"
+  postgresDb: "order_processing"
+
+  redisHost: "172.19.0.1"
+  redisPort: "6379"
+
+  securityAccountLockoutMaxFailedAttempts: "5"
+  securityAccountLockoutLockDurationSeconds: "900"
+
+  rateLimitCapacity: "10"
+  rateLimitRefillTokens: "10"
+  rateLimitRefillDurationSeconds: "60"
+
+  jwtExpiration: "3600000"
+  jwtRefreshExpiration: "604800000"
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilization: 70
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+  path: /
+  pathType: Prefix
+
+secret:
+  name: high-performance-api-secret
