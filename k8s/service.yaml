@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: high-performance-api
+  labels:
+    app: high-performance-api
+spec:
+  type: ClusterIP
+  selector:
+    app: high-performance-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
