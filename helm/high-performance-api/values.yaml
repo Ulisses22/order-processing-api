@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: high-performance-api
-  tag: "0.1.1"
+  tag: "0.1.2"
   pullPolicy: Never
 
 service:
@@ -20,7 +20,7 @@ resources:
 
 config:
   serverPort: "8080"
-  appUrl: "http://localhost:8080"
+  appUrl: "http://localhost"
 
   postgresHost: "172.19.0.1"
   postgresPort: "5432"

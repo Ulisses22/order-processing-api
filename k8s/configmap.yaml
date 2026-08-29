@@ -4,7 +4,7 @@ metadata:
   name: high-performance-api-config
 data:
   SERVER_PORT: "8080"
-  APP_URL: "http://localhost:8080"
+  APP_URL: "http://localhost"
 
   POSTGRES_HOST: "172.19.0.1"
   POSTGRES_PORT: "5432"
