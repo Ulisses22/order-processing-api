@@ -8,6 +8,7 @@ import dev.ulisses.highperformanceapi.application.service.PaymentService;
 import dev.ulisses.highperformanceapi.domain.enums.PaymentMethod;
 import dev.ulisses.highperformanceapi.domain.enums.PaymentStatus;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -66,7 +67,7 @@ public class PaymentController {
 
             @RequestParam(required = false) Instant createdTo,
 
-            Pageable pageable
+            @ParameterObject Pageable pageable
     ) {
 
         PaymentSearchRequest request = new PaymentSearchRequest(
