@@ -2,7 +2,8 @@ replicaCount: 2
 
 image:
   repository: high-performance-api
-  tag: "0.1.2"
+#  tag: "0.1.2"
+  tag: "dev"
   pullPolicy: Never
 
 service:

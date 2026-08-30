@@ -10,6 +10,7 @@ import dev.ulisses.highperformanceapi.domain.enums.OrderStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -68,6 +69,7 @@ public class OrderController {
         );
     }
 
+    @Operation(summary = "Search orders")
     @GetMapping
     public Page<OrderResponse> search(
 
@@ -81,7 +83,7 @@ public class OrderController {
 
             @RequestParam(required = false) Instant createdTo,
 
-            Pageable pageable
+            @ParameterObject Pageable pageable
     ) {
 
         OrderSearchRequest request = new OrderSearchRequest(
