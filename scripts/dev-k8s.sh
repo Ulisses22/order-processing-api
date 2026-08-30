@@ -2,9 +2,13 @@
 
 set -e
 
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 IMAGE="high-performance-api:dev"
 CLUSTER="high-performance-api"
 DEPLOYMENT="high-performance-api"
+
+cd "$PROJECT_ROOT"
 
 echo "==> Building Spring Boot application..."
 ./mvnw clean package -DskipTests

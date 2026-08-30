@@ -5,6 +5,7 @@ import dev.ulisses.highperformanceapi.application.dto.request.UpdateProductReque
 import dev.ulisses.highperformanceapi.application.dto.response.ProductResponse;
 import dev.ulisses.highperformanceapi.application.service.ProductService;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -45,7 +46,7 @@ public class ProductController {
                     page = 0,
                     size = 20,
                     sort = "createdAt"
-            ) Pageable pageable
+            ) @ParameterObject Pageable pageable
     ) {
         if (name == null || name.isBlank()) {
             return productService.getAll(pageable);
