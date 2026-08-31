@@ -1,0 +1,687 @@
+package dev.ulisses.highperformanceapi.web;
+
+import dev.ulisses.highperformanceapi.domain.entity.User;
+import dev.ulisses.highperformanceapi.domain.enums.AuditAction;
+import dev.ulisses.highperformanceapi.domain.repository.AuditLogRepository;
+import dev.ulisses.highperformanceapi.domain.repository.UserRepository;
+import dev.ulisses.highperformanceapi.infrastructure.security.ratelimit.RateLimitFilter;
+import dev.ulisses.highperformanceapi.support.IntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import dev.ulisses.highperformanceapi.application.dto.request.LoginRequest;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
+
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+class AuthControllerIT extends IntegrationTest {
+
+    private String accessToken;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private RateLimitFilter rateLimitFilter;
+
+    @Autowired
+    private AuditLogRepository auditLogRepository;
+
+    @BeforeEach
+    void resetTestState() {
+
+        User user = userRepository
+                .findByUsername(USERNAME)
+                .orElseThrow();
+
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+
+        userRepository.save(user);
+
+        rateLimitFilter.clearBuckets();
+    }
+
+    @Test
+    @DisplayName("Should login successfully")
+    void shouldLoginSuccessfully() throws Exception {
+
+        LoginRequest request = new LoginRequest(
+                USERNAME,
+                PASSWORD
+        );
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").value(3600000));
+    }
+
+    @Test
+    @DisplayName("Should return 401 when password is invalid")
+    void shouldReturn401WhenPasswordIsInvalid() throws Exception {
+
+        LoginRequest request = new LoginRequest(
+                USERNAME,
+                "wrong-password"
+        );
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should return 401 when username does not exist")
+    void shouldReturn401WhenUsernameDoesNotExist() throws Exception {
+
+        LoginRequest request = new LoginRequest(
+                "unknown-user",
+                PASSWORD
+        );
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should return 401 when accessing protected endpoint without JWT")
+    void shouldReturn401WhenAccessingProtectedEndpointWithoutToken() throws Exception {
+
+        mockMvc.perform(get("/api/v1/customers"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should access protected endpoint with JWT")
+    void shouldAccessProtectedEndpointWithJwt() throws Exception {
+
+        String token = authenticate();
+
+        mockMvc.perform(get("/api/v1/customers")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Should login and return refresh token")
+    void shouldLoginAndReturnRefreshToken() throws Exception {
+
+        LoginRequest request = new LoginRequest(
+                USERNAME,
+                PASSWORD
+        );
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("Should refresh access token successfully")
+    void shouldRefreshAccessTokenSuccessfully() throws Exception {
+
+        LoginRequest loginRequest = new LoginRequest(USERNAME, PASSWORD);
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginRequest))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String refreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        mockMvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                    {
+                                        "refreshToken": "%s"
+                                    }
+                                    """.formatted(refreshToken))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").value(3600000));
+    }
+
+    @Test
+    @DisplayName("Should rotate refresh token")
+    void shouldRotateRefreshToken() throws Exception {
+
+        LoginRequest loginRequest =
+                new LoginRequest(USERNAME, PASSWORD);
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginRequest))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String oldRefreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        String refreshResponse = mockMvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                    {
+                                        "refreshToken": "%s"
+                                    }
+                                    """.formatted(oldRefreshToken))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String newRefreshToken = objectMapper
+                .readTree(refreshResponse)
+                .get("refreshToken")
+                .asString();
+
+        assertNotEquals(oldRefreshToken, newRefreshToken);
+    }
+
+    @Test
+    @DisplayName("Should reject old refresh token after rotation")
+    void shouldRejectOldRefreshTokenAfterRotation() throws Exception {
+
+        LoginRequest loginRequest =
+                new LoginRequest(USERNAME, PASSWORD);
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginRequest))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String oldRefreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        // Rotate the token
+        mockMvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                    {
+                                        "refreshToken": "%s"
+                                    }
+                                    """.formatted(oldRefreshToken))
+                )
+                .andExpect(status().isOk());
+
+        // The old token must no longer work
+        mockMvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                    {
+                                        "refreshToken": "%s"
+                                    }
+                                    """.formatted(oldRefreshToken))
+                )
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should revoke refresh token")
+    void shouldRevokeRefreshToken() throws Exception {
+
+        LoginRequest loginRequest =
+                new LoginRequest(USERNAME, PASSWORD);
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginRequest))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String refreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        mockMvc.perform(
+                        post("/api/v1/auth/revoke")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                    {
+                                        "refreshToken": "%s"
+                                    }
+                                    """.formatted(refreshToken))
+                )
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("Should reject revoked refresh token")
+    void shouldRejectRevokedRefreshToken() throws Exception {
+
+        LoginRequest loginRequest =
+                new LoginRequest(USERNAME, PASSWORD);
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginRequest))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String refreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        // Revoke the token
+        mockMvc.perform(
+                        post("/api/v1/auth/revoke")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                    {
+                                        "refreshToken": "%s"
+                                    }
+                                    """.formatted(refreshToken))
+                )
+                .andExpect(status().isNoContent());
+
+        // The revoked token must no longer work
+        mockMvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                    {
+                                        "refreshToken": "%s"
+                                    }
+                                    """.formatted(refreshToken))
+                )
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should lock account after max failed attempts")
+    void shouldLockAccountAfterMaxFailedAttempts() throws Exception {
+
+        LoginRequest request = new LoginRequest(
+                USERNAME,
+                "wrong-password"
+        );
+
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(
+                            post("/api/v1/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(request))
+                    )
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Test
+    @DisplayName("Should reject login when account is locked")
+    void shouldRejectLoginWhenAccountIsLocked() throws Exception {
+
+        LoginRequest wrongPassword = new LoginRequest(
+                USERNAME,
+                "wrong-password"
+        );
+
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(
+                            post("/api/v1/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(wrongPassword))
+                    )
+                    .andExpect(status().isUnauthorized());
+        }
+
+        LoginRequest correctPassword = new LoginRequest(
+                USERNAME,
+                PASSWORD
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(correctPassword))
+                )
+                .andExpect(status().isUnauthorized());
+    }
+
+    // Rate Limiting tests
+    @Test
+    @DisplayName("Should return 429 when login rate limit is exceeded")
+    void shouldReturn429WhenLoginRateLimitIsExceeded() throws Exception {
+
+        LoginRequest request = new LoginRequest(
+                USERNAME,
+                PASSWORD
+        );
+
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(
+                    post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request))
+            );
+        }
+
+        mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request))
+                )
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    @DisplayName("Should return 429 when refresh rate limit is exceeded")
+    void shouldReturn429WhenRefreshRateLimitIsExceeded() throws Exception {
+
+        LoginRequest loginRequest =
+                new LoginRequest(USERNAME, PASSWORD);
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginRequest))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String refreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(
+                    post("/api/v1/auth/refresh")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                            {
+                                "refreshToken": "%s"
+                            }
+                            """.formatted(refreshToken))
+            );
+        }
+
+        mockMvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                        {
+                            "refreshToken": "%s"
+                        }
+                        """.formatted(refreshToken))
+                )
+                .andExpect(status().isTooManyRequests());
+    }
+
+    // HELPER
+    protected String authenticate() throws Exception {
+
+        if (accessToken != null) {
+            return accessToken;
+        }
+
+        LoginRequest request = new LoginRequest(USERNAME, PASSWORD);
+
+        String response = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        accessToken = objectMapper.readTree(response)
+                .get("accessToken")
+                .asString();
+
+        return accessToken;
+    }
+
+    @Test
+    @DisplayName("Should return 429 when revoke rate limit is exceeded")
+    void shouldReturn429WhenRevokeRateLimitIsExceeded() throws Exception {
+
+        LoginRequest loginRequest =
+                new LoginRequest(USERNAME, PASSWORD);
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(loginRequest))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String refreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(
+                    post("/api/v1/auth/revoke")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                        {
+                            "refreshToken": "%s"
+                        }
+                        """.formatted(refreshToken))
+            );
+        }
+
+        mockMvc.perform(
+                        post("/api/v1/auth/revoke")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                            {
+                                "refreshToken": "%s"
+                            }
+                            """.formatted(refreshToken))
+                )
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    @DisplayName("Should record refresh token created audit event")
+    void shouldRecordRefreshTokenCreatedAuditEvent() throws Exception {
+
+        mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        new LoginRequest(USERNAME, PASSWORD)
+                                ))
+                )
+                .andExpect(status().isOk());
+
+        boolean auditRecorded = auditLogRepository.findAll()
+                .stream()
+                .anyMatch(audit ->
+                        audit.getAction() == AuditAction.REFRESH_TOKEN_CREATED
+                                && USERNAME.equals(audit.getUsername())
+                );
+
+        assertTrue(auditRecorded);
+    }
+
+    @Test
+    @DisplayName("Should record refresh token rotated audit event")
+    void shouldRecordRefreshTokenRotatedAuditEvent() throws Exception {
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        new LoginRequest(USERNAME, PASSWORD)
+                                ))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String refreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        mockMvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                        {
+                            "refreshToken": "%s"
+                        }
+                        """.formatted(refreshToken))
+                )
+                .andExpect(status().isOk());
+
+        boolean auditRecorded = auditLogRepository
+                .findAll()
+                .stream()
+                .anyMatch(audit ->
+                        audit.getAction() == AuditAction.REFRESH_TOKEN_ROTATED
+                                && USERNAME.equals(audit.getUsername())
+                                && "Refresh token rotated."
+                                .equals(audit.getDetails())
+                );
+
+        assertTrue(auditRecorded);
+    }
+
+    @Test
+    @DisplayName("Should record refresh token revoked audit event")
+    void shouldRecordRefreshTokenRevokedAuditEvent() throws Exception {
+
+        String loginResponse = mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                        new LoginRequest(USERNAME, PASSWORD)
+                                ))
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String refreshToken = objectMapper
+                .readTree(loginResponse)
+                .get("refreshToken")
+                .asString();
+
+        mockMvc.perform(
+                        post("/api/v1/auth/revoke")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                    "refreshToken": "%s"
+                                }
+                                """.formatted(refreshToken))
+                )
+                .andExpect(status().isNoContent());
+
+        boolean auditRecorded = auditLogRepository.findAll()
+                .stream()
+                .anyMatch(audit ->
+                        audit.getAction() == AuditAction.REFRESH_TOKEN_REVOKED
+                                && USERNAME.equals(audit.getUsername())
+                                && "Refresh token revoked."
+                                .equals(audit.getDetails())
+                );
+
+        assertTrue(auditRecorded);
+    }
+
+    @Test
+    @DisplayName("Should record rate limit exceeded audit event")
+    void shouldRecordRateLimitExceededAuditEvent() throws Exception {
+
+        LoginRequest request = new LoginRequest(
+                USERNAME,
+                PASSWORD
+        );
+
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(
+                    post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request))
+            );
+        }
+
+        mockMvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request))
+                )
+                .andExpect(status().isTooManyRequests());
+
+        boolean auditRecorded = auditLogRepository.findAll()
+                .stream()
+                .anyMatch(audit ->
+                        audit.getAction() == AuditAction.RATE_LIMIT_EXCEEDED
+                                && "Rate limit exceeded for /api/v1/auth/login."
+                                .equals(audit.getDetails())
+                );
+
+        assertTrue(auditRecorded);
+    }
+
+}

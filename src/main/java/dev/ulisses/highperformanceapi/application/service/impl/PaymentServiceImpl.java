@@ -21,6 +21,7 @@ import dev.ulisses.highperformanceapi.domain.enums.PaymentStatus;
 import dev.ulisses.highperformanceapi.domain.repository.OrderRepository;
 import dev.ulisses.highperformanceapi.domain.repository.PaymentRepository;
 import dev.ulisses.highperformanceapi.domain.specification.PaymentSpecification;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -223,7 +224,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional(readOnly = true)
     public Page<PaymentResponse> search(
             PaymentSearchRequest request,
-            Pageable pageable
+            @ParameterObject Pageable pageable
     ) {
 
         return paymentRepository

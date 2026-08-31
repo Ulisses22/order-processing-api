@@ -11,7 +11,10 @@ import dev.ulisses.highperformanceapi.domain.entity.Customer;
 import dev.ulisses.highperformanceapi.domain.enums.CustomerStatus;
 import dev.ulisses.highperformanceapi.domain.repository.CustomerRepository;
 import dev.ulisses.highperformanceapi.domain.specification.CustomerSpecification;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,6 +38,7 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public CustomerResponse create(CreateCustomerRequest request) {
 
         if(customerRepository.existsByEmail(request.email())) {
@@ -50,6 +54,11 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @Cacheable(
+            cacheNames = "customers",
+            key = "#id",
+            sync = true
+    )
     @Transactional(readOnly = true)
     public CustomerResponse findById(UUID id) {
         Customer customer = customerRepository.findById(id)
@@ -77,6 +86,12 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @CacheEvict(
+            cacheNames = "customers",
+            key = "#id",
+            beforeInvocation = true
+    )
+    @PreAuthorize("hasRole('ADMIN')")
     public CustomerResponse update(UUID id, UpdateCustomerRequest request) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -90,6 +105,12 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    @CacheEvict(
+            cacheNames = "customers",
+            key = "#id",
+            beforeInvocation = true
+    )
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(UUID id) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(

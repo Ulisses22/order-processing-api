@@ -18,6 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+import dev.ulisses.highperformanceapi.application.event.ShipmentCreatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
+
 @Service
 @Transactional
 public class ShipmentServiceImpl implements ShipmentService {
@@ -25,15 +28,18 @@ public class ShipmentServiceImpl implements ShipmentService {
     private final ShipmentRepository shipmentRepository;
     private final OrderRepository orderRepository;
     private final ShipmentMapper shipmentMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ShipmentServiceImpl(
             ShipmentRepository shipmentRepository,
             OrderRepository orderRepository,
-            ShipmentMapper shipmentMapper
+            ShipmentMapper shipmentMapper,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.shipmentRepository = shipmentRepository;
         this.orderRepository = orderRepository;
         this.shipmentMapper = shipmentMapper;
+        this.eventPublisher =  eventPublisher;
     }
 
     @Override
@@ -53,6 +59,13 @@ public class ShipmentServiceImpl implements ShipmentService {
         shipment.setStatus(ShipmentStatus.PENDING);
 
         Shipment savedShipment = shipmentRepository.save(shipment);
+
+        eventPublisher.publishEvent(
+                new ShipmentCreatedEvent(
+                        savedShipment.getId(),
+                        order.getId()
+                )
+        );
 
         return shipmentMapper.toResponse(savedShipment);
     }

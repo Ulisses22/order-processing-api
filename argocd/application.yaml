@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: high-performance-api
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Ulisses22/high-performance-api.git
+    targetRevision: dev
+    path: helm/high-performance-api
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

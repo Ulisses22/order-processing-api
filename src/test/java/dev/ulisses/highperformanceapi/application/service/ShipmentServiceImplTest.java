@@ -2,6 +2,7 @@ package dev.ulisses.highperformanceapi.application.service;
 
 import dev.ulisses.highperformanceapi.application.dto.request.CreateShipmentRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.ShipmentResponse;
+import dev.ulisses.highperformanceapi.application.event.ShipmentCreatedEvent;
 import dev.ulisses.highperformanceapi.application.exception.BusinessException;
 import dev.ulisses.highperformanceapi.application.exception.DuplicateResourceException;
 import dev.ulisses.highperformanceapi.application.exception.ResourceNotFoundException;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 public class ShipmentServiceImplTest {
@@ -42,6 +44,9 @@ public class ShipmentServiceImplTest {
 
     @InjectMocks
     private ShipmentServiceImpl shipmentService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Test
     void shouldCreateShipmentSuccessfully() {
@@ -107,6 +112,12 @@ public class ShipmentServiceImplTest {
         verify(shipmentRepository).save(shipment);
         verify(shipmentMapper).toEntity(request);
         verify(shipmentMapper).toResponse(shipment);
+        verify(eventPublisher).publishEvent(
+                new ShipmentCreatedEvent(
+                        shipment.getId(),
+                        order.getId()
+                )
+        );
     }
 
     @Test

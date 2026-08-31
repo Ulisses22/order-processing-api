@@ -3,6 +3,7 @@ package dev.ulisses.highperformanceapi.application.service;
 import dev.ulisses.highperformanceapi.application.dto.request.CreateCustomerRequest;
 import dev.ulisses.highperformanceapi.application.dto.request.UpdateCustomerRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.CustomerResponse;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -19,7 +20,7 @@ public interface CustomerService {
     Page<CustomerResponse> search(
             String name,
             String email,
-            Pageable pageable
+            @ParameterObject Pageable pageable
     );
 
     CustomerResponse update(UUID id, UpdateCustomerRequest request);

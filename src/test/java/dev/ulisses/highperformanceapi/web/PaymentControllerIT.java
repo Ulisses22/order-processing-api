@@ -9,15 +9,14 @@ import dev.ulisses.highperformanceapi.domain.entity.Payment;
 import dev.ulisses.highperformanceapi.domain.entity.Product;
 import dev.ulisses.highperformanceapi.domain.enums.*;
 import dev.ulisses.highperformanceapi.domain.repository.*;
+import dev.ulisses.highperformanceapi.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -32,16 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-public class PaymentControllerIT {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
-    private PaymentController paymentController;
+public class PaymentControllerIT extends IntegrationTest {
 
     @Autowired
     private PaymentRepository paymentRepository;
@@ -57,12 +47,6 @@ public class PaymentControllerIT {
 
     @Autowired
     private OrderRepository orderRepository;
-
-    @Value("${APP_SECURITY_USERNAME}")
-    private String username;
-
-    @Value("${APP_SECURITY_PASSWORD}")
-    private String password;
 
     // HELPERS
 
@@ -126,7 +110,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -147,7 +131,7 @@ public class PaymentControllerIT {
         // Act & Assert
 
         mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
@@ -179,7 +163,7 @@ public class PaymentControllerIT {
         // Act & Assert
 
         mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
@@ -209,7 +193,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -225,7 +209,7 @@ public class PaymentControllerIT {
         UpdateOrderStatusRequest statusRequest = new UpdateOrderStatusRequest(OrderStatus.PROCESSING);
 
         mockMvc.perform(patch("/api/v1/orders/{id}/status", createdOrder.id())
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(statusRequest)))
                 .andExpect(status().isOk());
@@ -238,7 +222,7 @@ public class PaymentControllerIT {
         // Act & Assert
 
         mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isUnprocessableContent())
@@ -272,7 +256,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -306,7 +290,7 @@ public class PaymentControllerIT {
         // Act & Assert
 
         mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isConflict())
@@ -335,7 +319,7 @@ public class PaymentControllerIT {
         // Act & Assert
 
         mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(request))
                 .andExpect(status().isBadRequest())
@@ -373,7 +357,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -411,7 +395,7 @@ public class PaymentControllerIT {
                         "/api/v1/payments/{id}/status",
                         payment.getId()
                 )
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(statusRequest)))
                 .andExpect(status().isOk())
@@ -443,7 +427,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -479,7 +463,7 @@ public class PaymentControllerIT {
                         "/api/v1/payments/{id}/status",
                         payment.getId()
                 )
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(statusRequest)))
                 .andExpect(status().isOk())
@@ -511,7 +495,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -530,7 +514,7 @@ public class PaymentControllerIT {
         );
 
         String paymentResponse = mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
@@ -555,7 +539,7 @@ public class PaymentControllerIT {
                         "/api/v1/payments/{id}/status",
                         createdPayment.id()
                 )
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(statusRequest)))
                 .andExpect(status().isUnprocessableEntity())
@@ -592,7 +576,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -611,7 +595,7 @@ public class PaymentControllerIT {
         );
 
         String paymentResponse = mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
@@ -637,7 +621,7 @@ public class PaymentControllerIT {
                         "/api/v1/payments/{id}/status",
                         createdPayment.id()
                 )
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(statusRequest)))
                 .andExpect(status().isUnprocessableEntity())
@@ -668,7 +652,7 @@ public class PaymentControllerIT {
                         "/api/v1/payments/{id}/status",
                         paymentId
                 )
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
@@ -702,7 +686,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -723,7 +707,7 @@ public class PaymentControllerIT {
         // Act
 
         mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
@@ -738,7 +722,7 @@ public class PaymentControllerIT {
                         "/api/v1/orders/{id}",
                         createdOrder.id()
                 )
-                        .with(httpBasic(username, password)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id")
                         .value(createdOrder.id().toString()))
@@ -768,7 +752,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -787,7 +771,7 @@ public class PaymentControllerIT {
         );
 
         mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
@@ -796,7 +780,7 @@ public class PaymentControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .param("status", "AUTHORIZED")
                         .param("page", "0")
                         .param("size", "10"))
@@ -829,7 +813,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -848,7 +832,7 @@ public class PaymentControllerIT {
         );
 
         mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
@@ -860,7 +844,7 @@ public class PaymentControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .param("orderId", createdOrder.id().toString())
                         .param("page", "0")
                         .param("size", "10"))
@@ -895,7 +879,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -914,7 +898,7 @@ public class PaymentControllerIT {
         );
 
         mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
@@ -924,7 +908,7 @@ public class PaymentControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .param("paymentMethod", "CREDIT_CARD")
                         .param("page", "0")
                         .param("size", "10"))
@@ -959,7 +943,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -978,7 +962,7 @@ public class PaymentControllerIT {
         );
 
         String paymentResponse = mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
@@ -1000,7 +984,7 @@ public class PaymentControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .param("createdFrom", createdFrom.toString())
                         .param("createdTo", createdTo.toString())
                         .param("page", "0")
@@ -1039,7 +1023,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -1058,7 +1042,7 @@ public class PaymentControllerIT {
         );
 
         String paymentResponse = mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
@@ -1082,7 +1066,7 @@ public class PaymentControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .param("createdFrom", createdFrom.toString())
                         .param("createdTo", createdTo.toString())
                         .param("page", "0")
@@ -1116,7 +1100,7 @@ public class PaymentControllerIT {
         );
 
         String orderResponse = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(orderRequest)))
                 .andExpect(status().isCreated())
@@ -1135,7 +1119,7 @@ public class PaymentControllerIT {
         );
 
         String paymentResponse = mockMvc.perform(post("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(paymentRequest)))
                 .andExpect(status().isCreated())
@@ -1153,7 +1137,7 @@ public class PaymentControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/payments")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                         .param("transactionId", createdPayment.transactionId())
                         .param("page", "0")
                         .param("size", "10"))

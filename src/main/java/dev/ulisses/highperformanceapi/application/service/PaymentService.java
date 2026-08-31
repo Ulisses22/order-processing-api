@@ -5,6 +5,7 @@ import dev.ulisses.highperformanceapi.application.dto.request.PaymentSearchReque
 import dev.ulisses.highperformanceapi.application.dto.request.UpdateOrderStatusRequest;
 import dev.ulisses.highperformanceapi.application.dto.response.PaymentResponse;
 import dev.ulisses.highperformanceapi.domain.enums.PaymentStatus;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -18,7 +19,7 @@ public interface PaymentService {
 
     Page<PaymentResponse> search(
             PaymentSearchRequest request,
-            Pageable pageable
+            @ParameterObject Pageable pageable
     );
 
 }

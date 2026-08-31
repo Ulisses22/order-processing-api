@@ -1,18 +1,9 @@
 spring:
   config:
     import: "optional:file:.env[.properties]"
+
   application:
     name: high-performance-api
-
-  management:
-    endpoints:
-      web:
-        expose:
-          include: health,info,metrics,prometheus
-    endpoint:
-      # in PROD use "when-authorized"
-      health:
-        show-details: always
 
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
@@ -22,7 +13,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
-
     properties:
       jakarta.persistence.schema-generation.scripts.action: create
       jakarta.persistence.schema-generation.scripts.create-source: metadata
@@ -30,9 +20,23 @@ spring:
 
   flyway:
     enabled: true
-#    locations: classpath:db/migration
+    # locations: classpath:db/migration
     baseline-on-migrate: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - metrics
+          - prometheus
+
+  endpoint:
+    health:
+      # in PROD use "when-authorized"
+      show-details: always
 
 server:
   port: ${SERVER_PORT}
-

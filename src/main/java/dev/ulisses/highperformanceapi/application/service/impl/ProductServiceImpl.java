@@ -12,6 +12,8 @@ import dev.ulisses.highperformanceapi.domain.entity.Product;
 import dev.ulisses.highperformanceapi.domain.enums.ProductStatus;
 import dev.ulisses.highperformanceapi.domain.repository.ProductRepository;
 import dev.ulisses.highperformanceapi.domain.specification.ProductSpecification;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -53,6 +55,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @CacheEvict(cacheNames = "products", key = "#id")
     public ProductResponse update(UUID id, UpdateProductRequest request) {
         Product product = productRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException(
@@ -68,6 +71,12 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Cacheable(
+            cacheNames = "products",
+            key = "#id",
+            sync = true
+    )
+    @Transactional(readOnly = true)
     public ProductResponse getById(UUID id) {
         Product product = productRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Product with id '%s' not found".formatted(id))
@@ -91,6 +100,11 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @CacheEvict(
+            cacheNames = "products",
+            key = "#id",
+            beforeInvocation = true
+    )
     public void delete(UUID id) {
         Product product = productRepository.findById(id).orElseThrow(
                 () -> new ResourceNotFoundException("Product with id '%s' not found".formatted(id))

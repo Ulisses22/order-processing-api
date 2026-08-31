@@ -16,22 +16,22 @@ import dev.ulisses.highperformanceapi.domain.repository.CustomerRepository;
 import dev.ulisses.highperformanceapi.domain.repository.InventoryRepository;
 import dev.ulisses.highperformanceapi.domain.repository.OrderRepository;
 import dev.ulisses.highperformanceapi.domain.repository.ProductRepository;
+import dev.ulisses.highperformanceapi.support.IntegrationTest;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 import static org.hamcrest.Matchers.containsString;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -39,13 +39,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-public class OrderControllerIT {
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+public class OrderControllerIT extends IntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    private String accessToken;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @BeforeAll
+    void authenticateOnce() throws Exception {
+        accessToken = authenticate();
+    }
 
     @Autowired
     private ProductRepository productRepository;
@@ -58,13 +60,6 @@ public class OrderControllerIT {
 
     @Autowired
     private OrderRepository orderRepository;
-
-    @Value("${APP_SECURITY_USERNAME}")
-    private String username;
-
-    @Value("${APP_SECURITY_PASSWORD}")
-    private String password;
-
 
     // HELPERS
     private Customer activeCustomer() {
@@ -129,7 +124,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -158,7 +153,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
@@ -192,7 +187,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnprocessableContent())
@@ -217,7 +212,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(request))
                 .andExpect(status().isBadRequest())
@@ -248,7 +243,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
@@ -280,7 +275,7 @@ public class OrderControllerIT {
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andReturn()
@@ -292,7 +287,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/orders/{id}", createdOrder.id())
-                        .with(httpBasic(username, password)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(createdOrder.id().toString()))
                 .andExpect(jsonPath("$.customerId").value(customer.getId().toString()))
@@ -312,7 +307,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/orders/{id}", orderId)
-                        .with(httpBasic(username, password)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
@@ -342,7 +337,7 @@ public class OrderControllerIT {
         );
 
         mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated());
@@ -350,7 +345,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .param("page", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk())
@@ -368,7 +363,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .param("page", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk())
@@ -398,7 +393,7 @@ public class OrderControllerIT {
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -412,7 +407,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(patch("/api/v1/orders/{id}/cancel", createdOrder.id())
-                        .with(httpBasic(username, password)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(createdOrder.id().toString()))
                 .andExpect(jsonPath("$.shippingAddress").value("221B Baker Street, London"))
@@ -423,7 +418,7 @@ public class OrderControllerIT {
     void shouldReturn404WhenOrderToCancelDoesNotExist() throws Exception {
 
         mockMvc.perform(patch("/api/v1/orders/{id}/cancel", UUID.randomUUID())
-                        .with(httpBasic(username, password)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
@@ -450,7 +445,7 @@ public class OrderControllerIT {
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andReturn()
@@ -461,13 +456,13 @@ public class OrderControllerIT {
                 objectMapper.readValue(response, OrderResponse.class);
 
         mockMvc.perform(patch("/api/v1/orders/{id}/cancel", order.id())
-                        .with(httpBasic(username, password)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk());
 
         // Act & Assert
 
         mockMvc.perform(patch("/api/v1/orders/{id}/cancel", order.id())
-                        .with(httpBasic(username, password)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.status").value(422))
                 .andExpect(jsonPath("$.message",
@@ -494,7 +489,7 @@ public class OrderControllerIT {
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andReturn()
@@ -511,7 +506,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(patch("/api/v1/orders/{id}/cancel", created.id())
-                        .with(httpBasic(username, password)))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.status").value(422))
                 .andExpect(jsonPath("$.message",
@@ -540,7 +535,7 @@ public class OrderControllerIT {
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andExpect(status().isCreated())
@@ -555,7 +550,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -585,7 +580,7 @@ public class OrderControllerIT {
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andReturn()
@@ -595,7 +590,7 @@ public class OrderControllerIT {
         OrderResponse order = objectMapper.readValue(response, OrderResponse.class);
 
         mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new UpdateOrderStatusRequest(OrderStatus.PROCESSING))))
@@ -604,7 +599,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new UpdateOrderStatusRequest(OrderStatus.SHIPPED))))
@@ -635,7 +630,7 @@ public class OrderControllerIT {
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andReturn()
@@ -645,14 +640,14 @@ public class OrderControllerIT {
         OrderResponse order = objectMapper.readValue(response, OrderResponse.class);
 
         mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new UpdateOrderStatusRequest(OrderStatus.PROCESSING))))
                 .andExpect(status().isOk());
 
         mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new UpdateOrderStatusRequest(OrderStatus.SHIPPED))))
@@ -661,7 +656,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new UpdateOrderStatusRequest(OrderStatus.DELIVERED))))
@@ -677,7 +672,7 @@ public class OrderControllerIT {
                 new UpdateOrderStatusRequest(OrderStatus.PROCESSING);
 
         mockMvc.perform(patch("/api/v1/orders/{id}/status", UUID.randomUUID())
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
@@ -706,7 +701,7 @@ public class OrderControllerIT {
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andReturn()
@@ -719,7 +714,7 @@ public class OrderControllerIT {
                 new UpdateOrderStatusRequest(OrderStatus.DELIVERED);
 
         mockMvc.perform(patch("/api/v1/orders/{id}/status", order.id())
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnprocessableContent())
@@ -744,7 +739,7 @@ public class OrderControllerIT {
         );
 
         mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated());
@@ -752,7 +747,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .param("status", "PENDING"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
@@ -778,7 +773,7 @@ public class OrderControllerIT {
         );
 
         mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated());
@@ -786,7 +781,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .param("customerId", customer.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
@@ -812,7 +807,7 @@ public class OrderControllerIT {
         );
 
         String response = mockMvc.perform(post("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -828,7 +823,7 @@ public class OrderControllerIT {
         // Act & Assert
 
         mockMvc.perform(get("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .param("orderNumber", orderNumber))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
@@ -840,10 +835,86 @@ public class OrderControllerIT {
     void shouldReturnEmptyPageWhenNoOrderMatchesFilters() throws Exception {
 
         mockMvc.perform(get("/api/v1/orders")
-                        .with(httpBasic(username, password))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .param("status", "DELIVERED"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(0))
                 .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void shouldSearchOrdersByCreationDateRange() throws Exception {
+
+        // Arrange
+
+        Customer customer = customerRepository.save(activeCustomer());
+
+        Product product = productRepository.save(activeProduct());
+
+        inventoryRepository.save(inventory(product, 100));
+
+        CreateOrderRequest firstRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(new OrderItemRequest(product.getId(), 1)),
+                "221B Baker Street, London"
+        );
+
+        String firstResponse = mockMvc.perform(
+                        post("/api/v1/orders")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + accessToken
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(firstRequest))
+                )
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        OrderResponse firstOrder =
+                objectMapper.readValue(firstResponse, OrderResponse.class);
+
+        // Create another order outside the exact date range
+
+        CreateOrderRequest secondRequest = new CreateOrderRequest(
+                customer.getId(),
+                List.of(new OrderItemRequest(product.getId(), 1)),
+                "Another Address"
+        );
+
+        mockMvc.perform(
+                        post("/api/v1/orders")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + accessToken
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(secondRequest))
+                )
+                .andExpect(status().isCreated());
+
+        // Act & Assert
+
+        mockMvc.perform(
+                        get("/api/v1/orders")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer " + accessToken
+                                )
+                                .param("createdFrom", firstOrder.createdAt().toString())
+                                .param("createdTo", firstOrder.createdAt().toString())
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(
+                        jsonPath("$.content[0].id")
+                                .value(firstOrder.id().toString())
+                )
+                .andExpect(
+                        jsonPath("$.content[0].orderNumber")
+                                .value(firstOrder.orderNumber())
+                );
     }
 }

@@ -6,6 +6,7 @@ import dev.ulisses.highperformanceapi.domain.entity.Product;
 import dev.ulisses.highperformanceapi.domain.enums.ProductStatus;
 import dev.ulisses.highperformanceapi.domain.repository.InventoryRepository;
 import dev.ulisses.highperformanceapi.domain.repository.ProductRepository;
+import dev.ulisses.highperformanceapi.support.IntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
@@ -29,25 +31,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class InventoryConcurrencyIT {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class InventoryConcurrencyIT extends IntegrationTest {
 
     @Autowired
     private ProductRepository productRepository;
 
     @Autowired
     private InventoryRepository inventoryRepository;
-
-    @Value("${APP_SECURITY_USERNAME}")
-    private String username;
-
-    @Value("${APP_SECURITY_PASSWORD}")
-    private String password;
 
     @AfterEach
     void cleanup() {
@@ -100,7 +90,7 @@ class InventoryConcurrencyIT {
                 return mockMvc.perform(
                                 post("/api/v1/inventories/products/{productId}/reserve",
                                         productId)
-                                        .with(httpBasic(username, password))
+                                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(objectMapper.writeValueAsString(request))
                         )

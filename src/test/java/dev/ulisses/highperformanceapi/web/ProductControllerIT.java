@@ -5,23 +5,22 @@ import dev.ulisses.highperformanceapi.application.dto.request.*;
 import dev.ulisses.highperformanceapi.domain.entity.Product;
 import dev.ulisses.highperformanceapi.domain.enums.ProductStatus;
 import dev.ulisses.highperformanceapi.domain.repository.ProductRepository;
+import dev.ulisses.highperformanceapi.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -33,22 +32,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class ProductControllerIT {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class ProductControllerIT extends IntegrationTest {
 
     @Autowired
     private ProductRepository productRepository;
-
-    @Value("${APP_SECURITY_USERNAME}")
-    private String username;
-
-    @Value("${APP_SECURITY_PASSWORD}")
-    private String password;
 
     @Test
     @DisplayName("Should create product successfully")
@@ -63,7 +50,7 @@ class ProductControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/products")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
@@ -114,7 +101,7 @@ class ProductControllerIT {
         mockMvc.perform(
                         get("/api/v1/products")
                                 .param("name", "Keyboard")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(1)))
@@ -137,7 +124,7 @@ class ProductControllerIT {
 
         mockMvc.perform(
                         get("/api/v1/products/{id}", product.getId())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(product.getId().toString()))
@@ -154,7 +141,7 @@ class ProductControllerIT {
     void shouldReturn404WhenProductNotFound() throws Exception {
 
         mockMvc.perform(get("/api/v1/products/{id}", UUID.randomUUID())
-                .with(httpBasic(username, password)))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate()))
                 .andExpect(status().isNotFound()
         );
     }
@@ -182,7 +169,7 @@ class ProductControllerIT {
 
         mockMvc.perform(
                         get("/api/v1/products")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(2)))
@@ -211,7 +198,7 @@ class ProductControllerIT {
 
         mockMvc.perform(
                         put("/api/v1/products/{id}", product.getId())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
@@ -260,7 +247,7 @@ class ProductControllerIT {
 
         mockMvc.perform(
                         delete("/api/v1/products/{id}", product.getId())
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                 )
                 .andExpect(status().isNoContent());
 
@@ -280,7 +267,7 @@ class ProductControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/products")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
@@ -309,10 +296,27 @@ class ProductControllerIT {
 
         mockMvc.perform(
                         post("/api/v1/products")
-                                .with(httpBasic(username, password))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + authenticate())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Should return 403 when user does not have required authority")
+    @WithMockUser(username = "user", authorities = "USER")
+    void shouldReturn403WhenUserDoesNotHaveRequiredAuthority() throws Exception {
+
+        mockMvc.perform(post("/api/v1/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {
+                              "name": "Test Product",
+                              "sku": "TEST-001",
+                              "price": 19.99
+                            }
+                            """))
+                .andExpect(status().isForbidden());
     }
 }
