@@ -49,6 +49,9 @@ spring:
   cache:
     type: redis
 
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
 management:
   endpoints:
     web:
@@ -66,6 +69,7 @@ management:
 
 server:
   port: ${SERVER_PORT}
+  shutdown: graceful
 
 app:
   url: ${APP_URL}
